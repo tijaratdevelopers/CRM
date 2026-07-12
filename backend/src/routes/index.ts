@@ -1,0 +1,38 @@
+import { Router } from 'express';
+import { authRouter } from './auth.routes';
+import { usersRouter } from './users.routes';
+import { teamLeadsRouter } from './teamLeads.routes';
+import { staffRouter } from './staff.routes';
+import { leadsRouter } from './leads.routes';
+import { leadSourcesRouter } from './leadSources.routes';
+import { campaignsRouter } from './campaigns.routes';
+import { meetingsRouter } from './meetings.routes';
+import { followUpsRouter } from './followUps.routes';
+import { callLogsRouter } from './callLogs.routes';
+import { tasksRouter } from './tasks.routes';
+import { notificationsRouter } from './notifications.routes';
+import { reportsRouter } from './reports.routes';
+import { whatsappRouter } from './whatsapp.routes';
+import { metaRouter } from './meta.routes';
+import { activityLogsRouter } from './activityLogs.routes';
+import { dashboardRouter } from './dashboard.routes';
+
+export const apiRouter = Router();
+
+apiRouter.use('/auth', authRouter);
+apiRouter.use('/users', usersRouter);
+apiRouter.use('/team-leads', teamLeadsRouter);
+apiRouter.use('/staff', staffRouter);
+apiRouter.use('/leads', leadsRouter);
+apiRouter.use('/lead-sources', leadSourcesRouter);
+apiRouter.use('/campaigns', campaignsRouter);
+apiRouter.use('/meetings', meetingsRouter);
+apiRouter.use('/follow-ups', followUpsRouter);
+apiRouter.use('/call-logs', callLogsRouter);
+apiRouter.use('/tasks', tasksRouter);
+apiRouter.use('/notifications', notificationsRouter);
+apiRouter.use('/reports', reportsRouter);
+apiRouter.use('/whatsapp', whatsappRouter);
+apiRouter.use('/meta', metaRouter);
+apiRouter.use('/activity-logs', activityLogsRouter);
+apiRouter.use('/dashboard', dashboardRouter);
