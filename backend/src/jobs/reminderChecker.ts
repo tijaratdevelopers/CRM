@@ -10,12 +10,13 @@ const LOOKAHEAD_MINUTES = 15;
  * A simple in-process poller is sufficient for a localhost dev CRM; swap for
  * a real cron/queue (e.g. Supabase Edge Function on a schedule) in production.
  */
+/** Local dev only — on Vercel there's no long-running process, so reminders run via the /api/cron/reminders Vercel Cron route instead. */
 export function startReminderChecker() {
   setInterval(checkMeetingReminders, CHECK_INTERVAL_MS);
   setInterval(checkFollowUpReminders, CHECK_INTERVAL_MS);
 }
 
-async function checkMeetingReminders() {
+export async function checkMeetingReminders() {
   const cutoff = new Date(Date.now() + LOOKAHEAD_MINUTES * 60_000).toISOString();
 
   const { data: meetings, error } = await supabaseAdmin
@@ -40,7 +41,7 @@ async function checkMeetingReminders() {
   }
 }
 
-async function checkFollowUpReminders() {
+export async function checkFollowUpReminders() {
   const now = new Date();
   const cutoff = new Date(now.getTime() + LOOKAHEAD_MINUTES * 60_000);
 
