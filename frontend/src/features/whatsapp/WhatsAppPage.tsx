@@ -2,7 +2,7 @@ import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
-import { MessageSquarePlus, Send } from 'lucide-react';
+import { MessageSquarePlus, Send, Pencil, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -87,8 +87,10 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
   const [name, setName] = React.useState('');
   const [body, setBody] = React.useState('');
   const [variables, setVariables] = React.useState('');
+  const [editingTemplate, setEditingTemplate] = React.useState<MessageTemplate | null>(null);
 
   const canCreate = profile?.role === 'admin' || profile?.role === 'team_lead';
+  const isEdit = !!editingTemplate;
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['whatsapp-templates'],
@@ -98,6 +100,20 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
     },
     enabled: open,
   });
+
+  const resetForm = () => {
+    setEditingTemplate(null);
+    setName('');
+    setBody('');
+    setVariables('');
+  };
+
+  const startEdit = (template: MessageTemplate) => {
+    setEditingTemplate(template);
+    setName(template.name);
+    setBody(template.body);
+    setVariables(template.variables.join(', '));
+  };
 
   const createTemplate = useMutation({
     mutationFn: async () => {
@@ -113,16 +129,63 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
     },
     onSuccess: () => {
       toast.success('Template created');
-      setName('');
-      setBody('');
-      setVariables('');
+      resetForm();
       queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const updateTemplate = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.patch<MessageTemplate>(
+        `/whatsapp/templates/${editingTemplate!.id}`,
+        {
+          name,
+          body,
+          variables: variables
+            .split(',')
+            .map((v) => v.trim())
+            .filter(Boolean),
+        },
+      );
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Template updated');
+      resetForm();
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const deleteTemplate = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/whatsapp/templates/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Template deleted');
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-templates'] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleDelete = (e: React.MouseEvent, template: MessageTemplate) => {
+    e.stopPropagation();
+    if (window.confirm(`Delete template "${template.name}"?`)) {
+      deleteTemplate.mutate(template.id);
+    }
+  };
+
+  const submitting = createTemplate.isPending || updateTemplate.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) resetForm();
+      }}
+    >
       <DialogTrigger asChild>
         <Button variant="outline" size="sm">
           <MessageSquarePlus className="mr-2 h-4 w-4" />
@@ -140,18 +203,46 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
             <p className="text-sm text-muted-foreground">No templates yet.</p>
           )}
           {templates?.map((template) => (
-            <button
+            <div
               key={template.id}
-              type="button"
-              onClick={() => {
-                onInsert(template.body);
-                setOpen(false);
-              }}
-              className="rounded-md border px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
+              className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-accent"
             >
-              <div className="font-medium">{template.name}</div>
-              <div className="truncate text-xs text-muted-foreground">{template.body}</div>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onInsert(template.body);
+                  setOpen(false);
+                }}
+                className="flex-1 text-left"
+              >
+                <div className="font-medium">{template.name}</div>
+                <div className="truncate text-xs text-muted-foreground">{template.body}</div>
+              </button>
+              {canCreate && (
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEdit(template);
+                    }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="destructive"
+                    disabled={deleteTemplate.isPending}
+                    onClick={(e) => handleDelete(e, template)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+            </div>
           ))}
         </div>
 
@@ -162,7 +253,11 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
               className="flex flex-col gap-3"
               onSubmit={(e) => {
                 e.preventDefault();
-                createTemplate.mutate();
+                if (isEdit) {
+                  updateTemplate.mutate();
+                } else {
+                  createTemplate.mutate();
+                }
               }}
             >
               <div className="flex flex-col gap-1.5">
@@ -193,9 +288,16 @@ function TemplatesDialog({ onInsert }: { onInsert: (body: string) => void }) {
                   placeholder="name, date"
                 />
               </div>
-              <Button type="submit" disabled={createTemplate.isPending}>
-                {createTemplate.isPending ? 'Creating…' : 'Create template'}
-              </Button>
+              <div className="flex gap-2">
+                {isEdit && (
+                  <Button type="button" variant="outline" onClick={resetForm}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit" disabled={submitting} className="flex-1">
+                  {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Create template'}
+                </Button>
+              </div>
             </form>
           </>
         )}

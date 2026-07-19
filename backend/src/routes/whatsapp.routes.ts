@@ -16,5 +16,17 @@ whatsappRouter.post(
   requireRole('admin', 'team_lead'),
   whatsappController.createTemplate,
 );
+whatsappRouter.patch(
+  '/templates/:id',
+  requireAuth,
+  requireRole('admin', 'team_lead'),
+  whatsappController.updateTemplate,
+);
+whatsappRouter.delete(
+  '/templates/:id',
+  requireAuth,
+  requireRole('admin', 'team_lead'),
+  whatsappController.deleteTemplate,
+);
 whatsappRouter.get('/messages/:leadId', requireAuth, whatsappController.listMessages);
 whatsappRouter.post('/messages/:leadId/send', requireAuth, whatsappController.sendMessage);

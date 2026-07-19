@@ -74,3 +74,18 @@ export async function listConversations(req: Request, res: Response) {
   const data = await whatsappDataService.listConversations(req.user!);
   res.json(data);
 }
+
+export async function updateTemplate(req: Request, res: Response) {
+  const { name, body, variables } = req.body ?? {};
+  const data = await whatsappDataService.updateTemplate(req.params.id, {
+    name,
+    body,
+    variables: Array.isArray(variables) ? variables : undefined,
+  });
+  res.json(data);
+}
+
+export async function deleteTemplate(req: Request, res: Response) {
+  await whatsappDataService.deleteTemplate(req.params.id);
+  res.status(204).send();
+}

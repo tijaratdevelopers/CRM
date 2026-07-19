@@ -4,6 +4,7 @@ import { unwrap } from '../utils/db';
 import { applyLeadScope } from '../utils/scope';
 import { logActivity } from '../utils/activityLog';
 import { createNotification } from './notifications.service';
+import { autoAssignLead } from './assignment.service';
 import { sendWhatsAppMessage } from '../integrations/whatsapp.service';
 import { AuthUser } from '../types';
 
@@ -128,6 +129,40 @@ export async function createTemplate(user: AuthUser, input: CreateTemplateInput)
   ) as MessageTemplate;
 }
 
+interface UpdateTemplateInput {
+  name?: string;
+  body?: string;
+  variables?: string[];
+}
+
+export async function updateTemplate(id: string, input: UpdateTemplateInput): Promise<MessageTemplate> {
+  const { data, error } = await supabaseAdmin
+    .from('message_templates')
+    .update(input)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error || !data) {
+    throw new HttpError(404, 'Template not found');
+  }
+  return data as MessageTemplate;
+}
+
+export async function deleteTemplate(id: string): Promise<void> {
+  const { error, count } = await supabaseAdmin
+    .from('message_templates')
+    .delete({ count: 'exact' })
+    .eq('id', id);
+
+  if (error) {
+    throw new HttpError(500, 'Failed to delete template');
+  }
+  if (!count) {
+    throw new HttpError(404, 'Template not found');
+  }
+}
+
 export interface ConversationSummary {
   leadId: string;
   leadName: string;
@@ -196,8 +231,21 @@ export async function recordInboundMessage(phone: string, body: string): Promise
   ) as InboundLeadRow | null;
 
   if (!lead) {
-    // Unknown number — create a placeholder lead so the message (and any
-    // follow-ups) aren't orphaned. assigned_staff_id is unknown, so leave it null.
+    // Unknown number — create a lead tagged with the WhatsApp source and let
+    // the round-robin engine pick who works it.
+    const existingSource = unwrap(
+      await supabaseAdmin.from('lead_sources').select('id').eq('name', 'WhatsApp').maybeSingle(),
+    ) as { id: string } | null;
+    const source =
+      existingSource ??
+      (unwrap(
+        await supabaseAdmin
+          .from('lead_sources')
+          .insert({ name: 'WhatsApp', description: 'Leads created from inbound WhatsApp messages' })
+          .select('id')
+          .single(),
+      ) as { id: string });
+
     lead = unwrap(
       await supabaseAdmin
         .from('leads')
@@ -205,6 +253,7 @@ export async function recordInboundMessage(phone: string, body: string): Promise
           name: phone,
           phone,
           whatsapp: phone,
+          source_id: source.id,
           status: 'new',
           created_by: null,
           last_modified_by: null,
@@ -212,6 +261,11 @@ export async function recordInboundMessage(phone: string, body: string): Promise
         .select('id, assigned_staff_id')
         .single(),
     ) as InboundLeadRow;
+
+    const assigned = await autoAssignLead(lead.id, phone);
+    if (assigned) {
+      lead.assigned_staff_id = assigned.staffId;
+    }
   }
 
   await supabaseAdmin.from('whatsapp_messages').insert({

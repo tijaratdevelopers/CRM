@@ -2,6 +2,7 @@ import type { Role } from '@/types';
 import {
   LayoutDashboard,
   Users,
+  UsersRound,
   UserCog,
   Contact,
   CalendarClock,
@@ -12,6 +13,7 @@ import {
   BarChart3,
   History,
   Settings,
+  Loader,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -24,6 +26,12 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin', 'team_lead', 'staff'] },
+  {
+    label: 'In Progress Leads',
+    to: '/in-progress-leads',
+    icon: Loader,
+    roles: ['admin', 'team_lead', 'staff'],
+  },
   { label: 'Leads', to: '/leads', icon: Contact, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Meetings', to: '/meetings', icon: CalendarClock, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Follow-ups', to: '/follow-ups', icon: BellRing, roles: ['admin', 'team_lead', 'staff'] },
@@ -32,6 +40,7 @@ export const navItems: NavItem[] = [
   { label: 'WhatsApp', to: '/whatsapp', icon: MessageCircle, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Reports', to: '/reports', icon: BarChart3, roles: ['admin', 'team_lead'] },
   { label: 'Users', to: '/users', icon: Users, roles: ['admin'] },
+  { label: 'Teams', to: '/teams', icon: UsersRound, roles: ['admin', 'team_lead'] },
   { label: 'Team Leads', to: '/team-leads', icon: UserCog, roles: ['admin'] },
   { label: 'Staff', to: '/staff', icon: UserCog, roles: ['admin', 'team_lead'] },
   { label: 'Activity Logs', to: '/activity-logs', icon: History, roles: ['admin', 'team_lead'] },

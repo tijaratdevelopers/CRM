@@ -1,18 +1,104 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import type { UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
+const teamLeadFormSchema = z.object({
+  fullName: z.string().min(1, 'Full name is required'),
+  phone: z.string().optional(),
+});
+
+type TeamLeadFormValues = z.infer<typeof teamLeadFormSchema>;
+
+function TeamLeadFormDialog({
+  teamLead,
+  onOpenChange,
+}: {
+  teamLead: UserProfile | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<TeamLeadFormValues>({
+    resolver: zodResolver(teamLeadFormSchema),
+    defaultValues: { fullName: teamLead?.full_name ?? '', phone: teamLead?.phone ?? '' },
+  });
+
+  React.useEffect(() => {
+    if (teamLead) {
+      reset({ fullName: teamLead.full_name, phone: teamLead.phone ?? '' });
+    }
+  }, [teamLead, reset]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: TeamLeadFormValues) => {
+      const { data } = await apiClient.patch<UserProfile>(`/users/${teamLead!.id}`, {
+        fullName: values.fullName,
+        phone: values.phone || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-leads'] });
+      toast.success('Team lead updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Dialog open={!!teamLead} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit team lead</DialogTitle>
+          <DialogDescription>Update this team lead's details.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit((values) => updateMutation.mutate(values))} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="tl-fullName">Full name</Label>
+            <Input id="tl-fullName" {...register('fullName')} />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="tl-phone">Phone</Label>
+            <Input id="tl-phone" {...register('phone')} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface TeamLeadPerformance {
   assigned_staff: number;
@@ -59,9 +145,15 @@ function StatTile({ label, value }: { label: string; value: number }) {
 function TeamLeadCard({
   teamLead,
   onViewStaff,
+  onEdit,
+  onDeactivate,
+  deactivatePending,
 }: {
   teamLead: UserProfile;
   onViewStaff: (teamLead: UserProfile) => void;
+  onEdit: (teamLead: UserProfile) => void;
+  onDeactivate: (teamLead: UserProfile) => void;
+  deactivatePending: boolean;
 }) {
   const [showPerformance, setShowPerformance] = React.useState(false);
 
@@ -78,7 +170,7 @@ function TeamLeadCard({
         <p className="text-sm text-muted-foreground">{teamLead.email}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
             variant="outline"
@@ -88,6 +180,17 @@ function TeamLeadCard({
           </Button>
           <Button size="sm" variant="outline" onClick={() => onViewStaff(teamLead)}>
             View staff
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => onEdit(teamLead)}>
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={!teamLead.is_active || deactivatePending}
+            onClick={() => onDeactivate(teamLead)}
+          >
+            Delete
           </Button>
         </div>
 
@@ -156,12 +259,32 @@ function StaffListDialog({
 }
 
 export function TeamLeadsPage() {
+  const queryClient = useQueryClient();
   const [staffDialogTeamLead, setStaffDialogTeamLead] = React.useState<UserProfile | null>(null);
+  const [editingTeamLead, setEditingTeamLead] = React.useState<UserProfile | null>(null);
 
   const teamLeadsQuery = useQuery({
     queryKey: ['team-leads'],
     queryFn: fetchTeamLeads,
   });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.patch<UserProfile>(`/users/${id}/deactivate`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['team-leads'] });
+      toast.success('Team lead deactivated');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleDeactivate = (teamLead: UserProfile) => {
+    if (window.confirm(`Deactivate ${teamLead.full_name}?`)) {
+      deactivateMutation.mutate(teamLead.id);
+    }
+  };
 
   const teamLeads = teamLeadsQuery.data ?? [];
 
@@ -179,11 +302,19 @@ export function TeamLeadsPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {teamLeads.map((teamLead) => (
-          <TeamLeadCard key={teamLead.id} teamLead={teamLead} onViewStaff={setStaffDialogTeamLead} />
+          <TeamLeadCard
+            key={teamLead.id}
+            teamLead={teamLead}
+            onViewStaff={setStaffDialogTeamLead}
+            onEdit={setEditingTeamLead}
+            onDeactivate={handleDeactivate}
+            deactivatePending={deactivateMutation.isPending}
+          />
         ))}
       </div>
 
       <StaffListDialog teamLead={staffDialogTeamLead} onOpenChange={() => setStaffDialogTeamLead(null)} />
+      <TeamLeadFormDialog teamLead={editingTeamLead} onOpenChange={() => setEditingTeamLead(null)} />
     </div>
   );
 }

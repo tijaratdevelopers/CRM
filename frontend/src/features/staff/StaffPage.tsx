@@ -1,10 +1,16 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import type { UserProfile } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -16,10 +22,90 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+
+const staffFormSchema = z.object({
+  fullName: z.string().min(1, 'Full name is required'),
+  phone: z.string().optional(),
+});
+
+type StaffFormValues = z.infer<typeof staffFormSchema>;
+
+function StaffFormDialog({
+  staffMember,
+  onOpenChange,
+}: {
+  staffMember: UserProfile | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const queryClient = useQueryClient();
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<StaffFormValues>({
+    resolver: zodResolver(staffFormSchema),
+    defaultValues: { fullName: staffMember?.full_name ?? '', phone: staffMember?.phone ?? '' },
+  });
+
+  React.useEffect(() => {
+    if (staffMember) {
+      reset({ fullName: staffMember.full_name, phone: staffMember.phone ?? '' });
+    }
+  }, [staffMember, reset]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: StaffFormValues) => {
+      const { data } = await apiClient.patch<UserProfile>(`/users/${staffMember!.id}`, {
+        fullName: values.fullName,
+        phone: values.phone || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast.success('Staff member updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Dialog open={!!staffMember} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit staff member</DialogTitle>
+          <DialogDescription>Update this staff member's details.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit((values) => updateMutation.mutate(values))} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-fullName">Full name</Label>
+            <Input id="staff-fullName" {...register('fullName')} />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-phone">Phone</Label>
+            <Input id="staff-phone" {...register('phone')} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface StaffPerformance {
   my_leads: number;
@@ -98,13 +184,34 @@ function StaffPerformanceDialog({
 
 export function StaffPage() {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const isAdmin = profile?.role === 'admin';
   const [selectedStaff, setSelectedStaff] = React.useState<UserProfile | null>(null);
+  const [editingStaff, setEditingStaff] = React.useState<UserProfile | null>(null);
 
   const staffQuery = useQuery({
     queryKey: ['staff'],
     queryFn: fetchStaff,
   });
+
+  const deactivateMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { data } = await apiClient.patch<UserProfile>(`/users/${id}/deactivate`);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      toast.success('Staff member deactivated');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleDeactivate = (e: React.MouseEvent, member: UserProfile) => {
+    e.stopPropagation();
+    if (window.confirm(`Deactivate ${member.full_name}?`)) {
+      deactivateMutation.mutate(member.id);
+    }
+  };
 
   const teamLeadsQuery = useQuery({
     queryKey: ['team-leads'],
@@ -179,16 +286,40 @@ export function StaffPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedStaff(member);
-                    }}
-                  >
-                    View performance
-                  </Button>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStaff(member);
+                      }}
+                    >
+                      View performance
+                    </Button>
+                    {isAdmin && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingStaff(member);
+                          }}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={!member.is_active || deactivateMutation.isPending}
+                          onClick={(e) => handleDeactivate(e, member)}
+                        >
+                          Delete
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
@@ -197,6 +328,7 @@ export function StaffPage() {
       </div>
 
       <StaffPerformanceDialog staffMember={selectedStaff} onOpenChange={() => setSelectedStaff(null)} />
+      <StaffFormDialog staffMember={editingStaff} onOpenChange={() => setEditingStaff(null)} />
     </div>
   );
 }
