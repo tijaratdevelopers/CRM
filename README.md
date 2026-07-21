@@ -1,6 +1,10 @@
-# CRM System
+# Tijarat Developers CRM
 
-A production-style CRM: React 19 + Vite + TypeScript frontend, Express + TypeScript backend, Supabase (Postgres + Auth + Storage + Realtime) as the database and identity provider. Role-based access for **Admin**, **Team Lead**, and **Staff**.
+A production CRM with an automatic round-robin lead distribution engine: React 19 + Vite + TypeScript frontend, Express + TypeScript backend, Supabase (Postgres + Auth + Storage + Realtime) as the database and identity provider. Role-based access for **Admin**, **Team Lead**, and **Staff**.
+
+**Live app:** https://crm-inky-xi.vercel.app · **API:** https://crm12-eta.vercel.app
+
+Deployments: pushing to `main` auto-deploys both Vercel projects (`crm` → `frontend/`, `crm12` → `backend/`).
 
 ## Tech stack
 

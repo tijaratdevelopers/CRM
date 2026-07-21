@@ -5,6 +5,7 @@ import { unwrap } from '../utils/db';
 import { logActivity } from '../utils/activityLog';
 import { applyLeadScope } from '../utils/scope';
 import { createNotification } from './notifications.service';
+import { autoAssignLead } from './assignment.service';
 import { AuthUser, LeadPriority, LeadStatus } from '../types';
 
 export interface Lead {
@@ -20,8 +21,10 @@ export interface Lead {
   campaign_id: string | null;
   assigned_staff_id: string | null;
   assigned_team_lead_id: string | null;
+  assigned_team_id: string | null;
   status: LeadStatus;
   priority: LeadPriority;
+  tags: string[];
   notes: string | null;
   created_by: string | null;
   last_modified_by: string | null;
@@ -31,6 +34,7 @@ export interface Lead {
 
 export interface ListLeadsFilters {
   status?: LeadStatus;
+  statuses?: LeadStatus[];
   priority?: LeadPriority;
   sourceId?: string;
   assignedStaffId?: string;
@@ -60,6 +64,7 @@ export interface CreateLeadInput {
   assignedStaffId?: string;
   assignedTeamLeadId?: string;
   priority?: LeadPriority;
+  tags?: string[];
   notes?: string;
 }
 
@@ -77,6 +82,7 @@ export interface UpdateLeadInput {
   assignedTeamLeadId?: string | null;
   status?: LeadStatus;
   priority?: LeadPriority;
+  tags?: string[];
   notes?: string;
 }
 
@@ -85,7 +91,7 @@ export interface AssignLeadInput {
   assignedTeamLeadId?: string | null;
 }
 
-const STAFF_EDITABLE_FIELDS: (keyof UpdateLeadInput)[] = ['status', 'priority', 'notes'];
+const STAFF_EDITABLE_FIELDS: (keyof UpdateLeadInput)[] = ['status', 'priority', 'tags', 'notes'];
 
 /** Admin sees all leads; team_lead sees their team's leads; staff sees only their own. */
 export async function listLeads(
@@ -98,6 +104,7 @@ export async function listLeads(
   query = applyLeadScope(query, user);
 
   if (filters.status) query = query.eq('status', filters.status);
+  if (filters.statuses && filters.statuses.length > 0) query = query.in('status', filters.statuses);
   if (filters.priority) query = query.eq('priority', filters.priority);
   if (filters.sourceId) query = query.eq('source_id', filters.sourceId);
   if (filters.assignedStaffId) query = query.eq('assigned_staff_id', filters.assignedStaffId);
@@ -132,10 +139,28 @@ export async function getLeadById(user: AuthUser, id: string): Promise<Lead> {
   return data as Lead;
 }
 
+/** Finds or creates a lead source by name and returns its id. */
+async function resolveSourceId(name: string, description: string): Promise<string> {
+  const existing = unwrap(
+    await supabaseAdmin.from('lead_sources').select('id').eq('name', name).maybeSingle(),
+  ) as { id: string } | null;
+  if (existing) return existing.id;
+
+  const created = unwrap(
+    await supabaseAdmin.from('lead_sources').insert({ name, description }).select('id').single(),
+  ) as { id: string };
+  return created.id;
+}
+
 export async function createLead(user: AuthUser, input: CreateLeadInput): Promise<Lead> {
   const status: LeadStatus = input.assignedStaffId ? 'assigned' : 'new';
 
-  const lead = unwrap(
+  // Leads typed in by hand default to the Manual Entry source so reports and
+  // the leads table always show where a lead came from.
+  const sourceId =
+    input.sourceId ?? (await resolveSourceId('Manual Entry', 'Leads created manually in the CRM'));
+
+  let lead = unwrap(
     await supabaseAdmin
       .from('leads')
       .insert({
@@ -146,12 +171,13 @@ export async function createLead(user: AuthUser, input: CreateLeadInput): Promis
         company: input.company ?? null,
         city: input.city ?? null,
         country: input.country ?? null,
-        source_id: input.sourceId ?? null,
+        source_id: sourceId,
         campaign_id: input.campaignId ?? null,
         assigned_staff_id: input.assignedStaffId ?? null,
         assigned_team_lead_id: input.assignedTeamLeadId ?? null,
         status,
         priority: input.priority ?? 'medium',
+        tags: input.tags ?? [],
         notes: input.notes ?? null,
         created_by: user.id,
         last_modified_by: user.id,
@@ -168,6 +194,18 @@ export async function createLead(user: AuthUser, input: CreateLeadInput): Promis
       body: lead.name,
       payload: { leadId: lead.id },
     });
+  } else {
+    // No explicit assignee — hand the lead to the round-robin engine.
+    const assigned = await autoAssignLead(lead.id, lead.name);
+    if (assigned) {
+      lead = {
+        ...lead,
+        assigned_staff_id: assigned.staffId,
+        assigned_team_id: assigned.teamId,
+        assigned_team_lead_id: assigned.teamLeadId,
+        status: lead.status === 'new' ? 'assigned' : lead.status,
+      };
+    }
   }
 
   return lead;
@@ -201,6 +239,7 @@ export async function updateLead(user: AuthUser, id: string, patch: UpdateLeadIn
   if (patch.assignedTeamLeadId !== undefined) updates.assigned_team_lead_id = patch.assignedTeamLeadId;
   if (patch.status !== undefined) updates.status = patch.status;
   if (patch.priority !== undefined) updates.priority = patch.priority;
+  if (patch.tags !== undefined) updates.tags = patch.tags;
   if (patch.notes !== undefined) updates.notes = patch.notes;
 
   const updated = unwrap(
@@ -268,6 +307,17 @@ export async function assignLead(user: AuthUser, id: string, input: AssignLeadIn
   return updated;
 }
 
+/** Admin-only, hard delete — child records (meetings, follow-ups, call logs, documents, WhatsApp messages) cascade. */
+export async function deleteLead(user: AuthUser, id: string): Promise<void> {
+  // Scoped existence check (404 if out of scope) before allowing the delete.
+  await getLeadById(user, id);
+
+  const { error } = await supabaseAdmin.from('leads').delete().eq('id', id);
+  if (error) {
+    throw new HttpError(400, error.message);
+  }
+}
+
 interface BulkUploadRow {
   name?: string;
   phone?: string;
@@ -325,8 +375,15 @@ export async function bulkUploadLeads(user: AuthUser, fileBuffer: Buffer): Promi
   }));
 
   const inserted = unwrap(
-    await supabaseAdmin.from('leads').insert(rowsToInsert).select('id'),
-  ) as { id: string }[];
+    await supabaseAdmin.from('leads').insert(rowsToInsert).select('id, name'),
+  ) as { id: string; name: string }[];
+
+  // Distribute the whole batch through the round-robin engine. Sequential on
+  // purpose: the engine serializes on the state row anyway, and order is what
+  // produces the T1S1, T2S1, ..., T1S2 pattern.
+  for (const row of inserted) {
+    await autoAssignLead(row.id, row.name);
+  }
 
   await logActivity({
     actorId: user.id,

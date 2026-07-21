@@ -16,6 +16,11 @@ export async function create(req: Request, res: Response) {
   res.status(201).json(data);
 }
 
+export async function update(req: Request, res: Response) {
+  const data = await tasksService.updateTask(req.user!, req.params.id, req.body ?? {});
+  res.json(data);
+}
+
 export async function submit(req: Request, res: Response) {
   const data = await tasksService.submitTask(req.user!, req.params.id);
   res.json(data);

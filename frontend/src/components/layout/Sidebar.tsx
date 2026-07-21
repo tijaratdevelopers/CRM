@@ -22,12 +22,9 @@ export function Sidebar() {
     () => localStorage.getItem(COLLAPSED_KEY) === '1',
   );
 
-  const items = React.useMemo(
-    () => (profile ? navItems.filter((item) => item.roles.includes(profile.role)) : []),
-    [profile],
-  );
-
   if (!profile) return null;
+
+  const items = navItems.filter((item) => item.roles.includes(profile.role));
 
   function toggleCollapsed() {
     setCollapsed((prev) => {
@@ -39,7 +36,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'hidden shrink-0 transition-[width] duration-150 md:flex md:flex-col bg-sidebar-brand text-emerald-50',
+        'hidden shrink-0 transition-[width] duration-300 md:flex md:flex-col bg-sidebar-brand text-emerald-50',
         collapsed ? 'w-[68px]' : 'w-64',
       )}
     >
@@ -73,7 +70,7 @@ export function Sidebar() {
         </button>
       </div>
       <nav className={cn('flex-1 space-y-1 overflow-y-auto', collapsed ? 'p-2' : 'p-3')}>
-        {items.map((item) => (
+        {items.map((item, i) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -81,13 +78,15 @@ export function Sidebar() {
             title={collapsed ? item.label : undefined}
             className={({ isActive }) =>
               cn(
-                'group relative flex items-center rounded-lg text-sm font-medium transition-colors duration-150',
+                'group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200 animate-slide-in-left',
                 collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2',
                 isActive
                   ? 'bg-gradient-to-r from-emerald-500/90 to-teal-600/90 text-white shadow-md shadow-emerald-950/60'
-                  : 'text-emerald-100/70 hover:bg-emerald-800/40 hover:text-white',
+                  : 'text-emerald-100/70 hover:bg-emerald-800/40 hover:text-white' +
+                    (collapsed ? '' : ' hover:translate-x-0.5'),
               )
             }
+            style={{ animationDelay: `${i * 40}ms` }}
           >
             {({ isActive }) => (
               <>

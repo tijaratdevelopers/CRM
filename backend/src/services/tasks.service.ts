@@ -27,6 +27,13 @@ export interface CreateTaskInput {
   dueDate?: string;
 }
 
+export interface UpdateTaskInput {
+  title?: string;
+  description?: string;
+  assignedTo?: string;
+  dueDate?: string;
+}
+
 async function fetchTaskOrThrow(id: string): Promise<Task> {
   const { data, error } = await supabaseAdmin.from('tasks').select('*').eq('id', id).maybeSingle();
   if (error) {
@@ -109,6 +116,43 @@ export async function createTask(user: AuthUser, input: CreateTaskInput): Promis
   });
 
   return task;
+}
+
+/** Admin, or the team lead who created it, can edit a task's details (reassignment included). */
+export async function updateTask(user: AuthUser, id: string, patch: UpdateTaskInput): Promise<Task> {
+  const current = await fetchTaskOrThrow(id);
+
+  const isAdmin = user.role === 'admin';
+  const isCreatorTeamLead = user.role === 'team_lead' && current.created_by === user.id;
+  if (!isAdmin && !isCreatorTeamLead) {
+    throw new HttpError(403, 'Not authorized to edit this task');
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (patch.title !== undefined) updates.title = patch.title;
+  if (patch.description !== undefined) updates.description = patch.description;
+  if (patch.assignedTo !== undefined) updates.assigned_to = patch.assignedTo;
+  if (patch.dueDate !== undefined) updates.due_date = patch.dueDate;
+
+  if (Object.keys(updates).length === 0) {
+    throw new HttpError(400, 'No fields provided to update');
+  }
+
+  const updated = unwrap(
+    await supabaseAdmin.from('tasks').update(updates).eq('id', id).select().single(),
+  ) as Task;
+
+  if (patch.assignedTo !== undefined && patch.assignedTo !== current.assigned_to) {
+    await createNotification({
+      userId: patch.assignedTo,
+      type: 'task_assigned',
+      title: 'Task assigned to you',
+      body: updated.title,
+      payload: { taskId: updated.id },
+    });
+  }
+
+  return updated;
 }
 
 export async function submitTask(user: AuthUser, id: string): Promise<Task> {

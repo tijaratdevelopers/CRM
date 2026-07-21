@@ -52,17 +52,21 @@ function pickField(fieldData: MetaFieldDatum[], ...keys: string[]): string | und
 
 /**
  * Fetches the actual submitted answers for a Meta Lead Ads `leadgen_id` via
- * the Graph API. Requires a Page Access Token with the leads_retrieval
- * permission (env.meta.pageAccessToken) — without one, returns an empty
- * result so the webhook can still record a placeholder lead instead of failing.
+ * the Graph API. `accessToken` is the OAuth-stored page token (preferred) or
+ * the legacy env.meta.pageAccessToken — without one, returns an empty result
+ * so the webhook can still record a placeholder lead instead of failing.
  */
-export async function fetchLeadDetailsFromMeta(leadgenId: string): Promise<MetaLeadDetails> {
-  if (!env.meta.pageAccessToken) {
-    console.warn(`META_PAGE_ACCESS_TOKEN is not set — recording lead ${leadgenId} without its form answers`);
+export async function fetchLeadDetailsFromMeta(
+  leadgenId: string,
+  accessToken?: string | null,
+): Promise<MetaLeadDetails> {
+  const token = accessToken || env.meta.pageAccessToken;
+  if (!token) {
+    console.warn(`No Meta page access token available — recording lead ${leadgenId} without its form answers`);
     return { leadgenId, raw: {} };
   }
 
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?access_token=${env.meta.pageAccessToken}`;
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?access_token=${token}`;
   const response = await fetch(url);
   const data: any = await response.json().catch(() => ({}));
 

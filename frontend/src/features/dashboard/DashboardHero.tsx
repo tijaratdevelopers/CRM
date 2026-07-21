@@ -18,8 +18,9 @@ export function DashboardHero({ eyebrow, title, subtitle, gradient, icon }: Dash
       )}
     >
       <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-10" />
-      <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-white/10 blur-2xl animate-float" />
+      <div className="pointer-events-none absolute -right-10 -top-10 h-48 w-48 rounded-full bg-amber-300/20 blur-2xl animate-float" />
       <div className="pointer-events-none absolute -bottom-16 left-1/3 h-56 w-56 rounded-full bg-white/10 blur-2xl animate-float animation-delay-2000" />
+      <span className="sheen-overlay rounded-2xl" />
 
       <div className="relative z-10 flex items-center justify-between gap-4">
         <div>

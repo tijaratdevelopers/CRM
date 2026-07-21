@@ -28,22 +28,22 @@ export function TeamLeadDashboard() {
     queryFn: fetchTeamLeadSummary,
   });
 
-  const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent }[] = [
-    { label: 'Assigned Staff', value: data?.assigned_staff ?? '—', icon: <UserCog className="h-5 w-5" />, accent: 'emerald' },
-    { label: 'Assigned Leads', value: data?.assigned_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'sky' },
-    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'amber' },
-    { label: "Today's Meetings", value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'violet' },
-    { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, accent: 'emerald' },
-    { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, accent: 'rose' },
+  const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent; to: string }[] = [
+    { label: 'Assigned Staff', value: data?.assigned_staff ?? '—', icon: <UserCog className="h-5 w-5" />, accent: 'emerald', to: '/staff' },
+    { label: 'Assigned Leads', value: data?.assigned_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'sky', to: '/leads' },
+    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'amber', to: '/follow-ups' },
+    { label: "Today's Meetings", value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'violet', to: '/meetings' },
+    { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
+    { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, accent: 'rose', to: '/leads' },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       <DashboardHero
-        eyebrow="Team lead overview"
+        eyebrow="Tijarat Developers · Team Desk"
         title={`Hi${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} — here's your team today`}
-        subtitle="Track your assigned staff's leads, follow-ups and meetings, and see how the team is converting."
-        gradient="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-600"
+        subtitle="Fresh leads land on your team automatically. Watch follow-ups, meetings and conversions move in real time."
+        gradient="bg-gradient-to-br from-teal-800 via-emerald-600 to-emerald-500"
         icon={<UsersRound className="h-8 w-8" />}
       />
 
@@ -56,7 +56,7 @@ export function TeamLeadDashboard() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           {stats.map((stat, i) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} accent={stat.accent} index={i} />
+            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} accent={stat.accent} index={i} to={stat.to} />
           ))}
         </div>
       )}

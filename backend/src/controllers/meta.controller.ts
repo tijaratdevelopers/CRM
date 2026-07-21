@@ -3,8 +3,102 @@ import { env } from '../config/env';
 import { supabaseAdmin } from '../config/supabaseAdmin';
 import { verifyWebhookSignature, fetchLeadDetailsFromMeta, MetaLeadDetails } from '../integrations/meta.service';
 import { createNotification } from '../services/notifications.service';
+import { autoAssignLead } from '../services/assignment.service';
+import * as metaIntegration from '../services/metaIntegration.service';
+import { HttpError } from '../middleware/auth';
 
 const META_LEAD_SOURCE_NAME = 'Meta Lead Ads';
+
+// ---------------------------------------------------------------------------
+// OAuth connection flow
+// ---------------------------------------------------------------------------
+
+/** GET /login — admin-only. Returns the Facebook OAuth dialog URL to redirect to. */
+export function getLoginUrl(req: Request, res: Response) {
+  res.json({ url: metaIntegration.buildLoginUrl(req.user!.id) });
+}
+
+function redirectToSettings(res: Response, params: Record<string, string>) {
+  const query = new URLSearchParams({ tab: 'integrations', ...params });
+  res.redirect(`${env.frontendUrl}/settings?${query.toString()}`);
+}
+
+/**
+ * GET /callback — Meta redirects the admin's browser here after OAuth.
+ * Not behind requireAuth (no bearer header on a browser redirect) — the
+ * HMAC-signed `state` parameter authenticates the request instead.
+ */
+export async function oauthCallback(req: Request, res: Response) {
+  // User pressed "Cancel" on the Facebook dialog.
+  if (req.query.error || req.query.error_reason) {
+    const cancelled = req.query.error_reason === 'user_denied';
+    redirectToSettings(res, { meta_error: cancelled ? 'cancelled' : 'oauth_failed' });
+    return;
+  }
+
+  const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+  const userId = metaIntegration.verifyOAuthState(
+    typeof req.query.state === 'string' ? req.query.state : undefined,
+  );
+
+  if (!code || !userId) {
+    redirectToSettings(res, { meta_error: 'invalid_state' });
+    return;
+  }
+
+  try {
+    await metaIntegration.handleOAuthCallback(code, userId);
+    redirectToSettings(res, { meta: 'connected' });
+  } catch (err) {
+    console.error('Meta OAuth callback failed:', err);
+    redirectToSettings(res, { meta_error: 'exchange_failed' });
+  }
+}
+
+/** GET /businesses — admin-only. */
+export async function listBusinesses(_req: Request, res: Response) {
+  res.json(await metaIntegration.listBusinesses());
+}
+
+/** GET /pages — admin-only. */
+export async function listPages(_req: Request, res: Response) {
+  res.json(await metaIntegration.listPages());
+}
+
+/** GET /forms?pageId= — admin-only. */
+export async function listForms(req: Request, res: Response) {
+  const pageId = typeof req.query.pageId === 'string' ? req.query.pageId : '';
+  if (!pageId) throw new HttpError(400, 'pageId is required');
+  res.json(await metaIntegration.listForms(pageId));
+}
+
+/** POST /connect — admin-only. Saves the selection and wires up the webhook. */
+export async function connect(req: Request, res: Response) {
+  const body = req.body ?? {};
+  const result = await metaIntegration.connect({
+    businessId: body.businessId || undefined,
+    businessName: body.businessName || undefined,
+    pageId: body.pageId,
+    pageName: body.pageName,
+    forms: body.forms ?? [],
+  });
+  res.json(result);
+}
+
+/** POST /disconnect — admin-only. */
+export async function disconnect(_req: Request, res: Response) {
+  await metaIntegration.disconnect();
+  res.json({ ok: true });
+}
+
+/** GET /status — admin-only. Connection state for the Settings > Integrations page. */
+export async function getIntegrationStatus(_req: Request, res: Response) {
+  res.json(await metaIntegration.getStatus());
+}
+
+// ---------------------------------------------------------------------------
+// Webhook (called by Meta directly)
+// ---------------------------------------------------------------------------
 
 /** GET /webhook — Meta verification handshake. Not behind requireAuth. */
 export function verifyWebhook(req: Request, res: Response) {
@@ -26,7 +120,7 @@ function buildLeadNotes(details: MetaLeadDetails): string {
   return lines.join('\n');
 }
 
-/** Notifies every active admin — Meta leads land unassigned, so admins are who needs to know. */
+/** Fallback when the round-robin engine has no one to assign to — admins need to know. */
 async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<void> {
   const { data: admins } = await supabaseAdmin.from('users').select('id').eq('role', 'admin').eq('is_active', true);
 
@@ -43,12 +137,16 @@ async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<
   );
 }
 
-async function processLeadgenEvent(leadgenId: string): Promise<void> {
+async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: string): Promise<void> {
+  // Only accept events for the connected page/forms (when a connection exists).
+  if (!(await metaIntegration.shouldProcessLeadgenEvent(pageId, formId))) return;
+
   // Meta can redeliver the same event on retry — skip if we already recorded this leadgen_id.
   const existing = await supabaseAdmin.from('leads').select('id').ilike('notes', `%leadgen_id: ${leadgenId}%`).maybeSingle();
   if (existing.data) return;
 
-  const details = await fetchLeadDetailsFromMeta(leadgenId);
+  const accessToken = await metaIntegration.getLeadFetchToken();
+  const details = await fetchLeadDetailsFromMeta(leadgenId, accessToken);
 
   const source = await supabaseAdmin.from('lead_sources').select('id').eq('name', META_LEAD_SOURCE_NAME).maybeSingle();
 
@@ -75,7 +173,14 @@ async function processLeadgenEvent(leadgenId: string): Promise<void> {
     return;
   }
 
-  await notifyAdminsOfNewLead(lead.id, lead.name);
+  await metaIntegration.touchLastSynced();
+
+  // Round-robin auto-assignment (notifies the chosen staff member itself);
+  // only fall back to notifying admins when nobody was available.
+  const assigned = await autoAssignLead(lead.id, lead.name);
+  if (!assigned) {
+    await notifyAdminsOfNewLead(lead.id, lead.name);
+  }
 }
 
 /**
@@ -99,11 +204,12 @@ export async function receiveWebhook(req: Request, res: Response) {
   for (const entry of entries) {
     const changes: unknown[] = (entry as { changes?: unknown[] })?.changes ?? [];
     for (const change of changes) {
-      const leadgenId: string | undefined = (change as { value?: { leadgen_id?: string } })?.value?.leadgen_id;
+      const value = (change as { value?: { leadgen_id?: string; page_id?: string; form_id?: string } })?.value;
+      const leadgenId = value?.leadgen_id;
       if (!leadgenId) continue;
 
       try {
-        await processLeadgenEvent(leadgenId);
+        await processLeadgenEvent(leadgenId, value?.page_id, value?.form_id);
       } catch (err) {
         console.error('Failed to process Meta leadgen event', leadgenId, err);
       }
@@ -111,14 +217,4 @@ export async function receiveWebhook(req: Request, res: Response) {
   }
 
   res.sendStatus(200);
-}
-
-/** GET /status — admin-only. Reports whether Meta is wired up for real, for the Settings > Integrations page. */
-export function getIntegrationStatus(_req: Request, res: Response) {
-  res.json({
-    webhookUrl: `${env.publicBackendUrl}/api/meta/webhook`,
-    verifyToken: env.meta.verifyToken,
-    pageAccessTokenConfigured: Boolean(env.meta.pageAccessToken),
-    appSecretConfigured: Boolean(env.meta.appSecret),
-  });
 }

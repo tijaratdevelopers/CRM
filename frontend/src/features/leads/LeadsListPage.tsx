@@ -12,6 +12,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -127,6 +128,237 @@ const addLeadDefaults: AddLeadFormValues = {
   notes: '',
 };
 
+function EditLeadDialog({
+  open,
+  onOpenChange,
+  lead,
+  isAdmin,
+  sources,
+  staff,
+  teamLeads,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: Lead | null;
+  isAdmin: boolean;
+  sources: LeadSource[];
+  staff: UserProfile[];
+  teamLeads: UserProfile[];
+}) {
+  const queryClient = useQueryClient();
+
+  const defaultValues = React.useCallback(
+    (): AddLeadFormValues => ({
+      name: lead?.name ?? '',
+      phone: lead?.phone ?? '',
+      whatsapp: lead?.whatsapp ?? '',
+      email: lead?.email ?? '',
+      company: lead?.company ?? '',
+      city: lead?.city ?? '',
+      country: lead?.country ?? '',
+      sourceId: lead?.source_id ?? 'none',
+      campaignId: lead?.campaign_id ?? 'none',
+      assignedStaffId: lead?.assigned_staff_id ?? 'none',
+      assignedTeamLeadId: lead?.assigned_team_lead_id ?? 'none',
+      priority: lead?.priority ?? 'medium',
+      notes: lead?.notes ?? '',
+    }),
+    [lead],
+  );
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<AddLeadFormValues>({
+    resolver: zodResolver(addLeadSchema),
+    defaultValues: defaultValues(),
+  });
+
+  React.useEffect(() => {
+    if (open) reset(defaultValues());
+  }, [open, defaultValues, reset]);
+
+  const updateMutation = useMutation({
+    mutationFn: async (values: AddLeadFormValues) => {
+      const payload = {
+        name: values.name,
+        phone: values.phone || undefined,
+        whatsapp: values.whatsapp || undefined,
+        email: values.email || undefined,
+        company: values.company || undefined,
+        city: values.city || undefined,
+        country: values.country || undefined,
+        sourceId: values.sourceId && values.sourceId !== 'none' ? values.sourceId : undefined,
+        campaignId: values.campaignId && values.campaignId !== 'none' ? values.campaignId : undefined,
+        assignedStaffId:
+          values.assignedStaffId && values.assignedStaffId !== 'none' ? values.assignedStaffId : null,
+        assignedTeamLeadId:
+          values.assignedTeamLeadId && values.assignedTeamLeadId !== 'none'
+            ? values.assignedTeamLeadId
+            : null,
+        priority: values.priority,
+        notes: values.notes || undefined,
+      };
+      const { data } = await apiClient.patch<Lead>(`/leads/${lead!.id}`, payload);
+      return data;
+    },
+    onSuccess: () => {
+      toast.success('Lead updated');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Lead</DialogTitle>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit((values) => updateMutation.mutate(values))}>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-name">Name *</Label>
+              <Input id="edit-name" {...register('name')} />
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input id="edit-phone" {...register('phone')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-whatsapp">WhatsApp</Label>
+              <Input id="edit-whatsapp" {...register('whatsapp')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input id="edit-email" type="email" {...register('email')} />
+              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-company">Company</Label>
+              <Input id="edit-company" {...register('company')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-city">City</Label>
+              <Input id="edit-city" {...register('city')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-country">Country</Label>
+              <Input id="edit-country" {...register('country')} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Priority</Label>
+              <Controller
+                control={control}
+                name="priority"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LEAD_PRIORITIES.map((p) => (
+                        <SelectItem key={p} value={p}>
+                          {formatStatusLabel(p)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Source</Label>
+              <Controller
+                control={control}
+                name="sourceId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
+                      {sources.map((source) => (
+                        <SelectItem key={source.id} value={source.id}>
+                          {source.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Assign to Staff</Label>
+              <Controller
+                control={control}
+                name="assignedStaffId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Unassigned</SelectItem>
+                      {staff.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+            {isAdmin && (
+              <div className="space-y-1.5">
+                <Label>Assign to Team Lead</Label>
+                <Controller
+                  control={control}
+                  name="assignedTeamLeadId"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Unassigned</SelectItem>
+                        {teamLeads.map((tl) => (
+                          <SelectItem key={tl.id} value={tl.id}>
+                            {tl.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-notes">Notes</Label>
+            <Textarea id="edit-notes" {...register('notes')} />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting || updateMutation.isPending}>
+              {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeadsListPage() {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -147,6 +379,7 @@ export function LeadsListPage() {
   const [addOpen, setAddOpen] = React.useState(false);
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [bulkFile, setBulkFile] = React.useState<File | null>(null);
+  const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
 
   React.useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchInput), 300);
@@ -215,7 +448,7 @@ export function LeadsListPage() {
       const { data } = await apiClient.get<UserProfile[]>('/team-leads');
       return data;
     },
-    enabled: isAdmin && addOpen,
+    enabled: isAdmin && (addOpen || !!editingLead),
   });
 
   const staffMap = React.useMemo(() => {
@@ -223,6 +456,12 @@ export function LeadsListPage() {
     staffQuery.data?.forEach((s) => map.set(s.id, s.full_name));
     return map;
   }, [staffQuery.data]);
+
+  const sourceMap = React.useMemo(() => {
+    const map = new Map<string, string>();
+    sourcesQuery.data?.forEach((s) => map.set(s.id, s.name));
+    return map;
+  }, [sourcesQuery.data]);
 
   function resolveStaffName(id: string | null) {
     if (!id) return '—';
@@ -291,6 +530,23 @@ export function LeadsListPage() {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const deleteLeadMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/leads/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Lead deleted');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleDelete = (lead: Lead) => {
+    if (window.confirm(`Delete lead "${lead.name}"? This also removes its meetings, follow-ups and call logs.`)) {
+      deleteLeadMutation.mutate(lead.id);
+    }
+  };
+
   const columnHelper = createColumnHelper<Lead>();
   const columns = React.useMemo(
     () => [
@@ -306,6 +562,13 @@ export function LeadsListPage() {
       columnHelper.accessor('company', {
         header: 'Company',
         cell: (info) => info.getValue() ?? '—',
+      }),
+      columnHelper.accessor('source_id', {
+        header: 'Source',
+        cell: (info) => {
+          const id = info.getValue();
+          return id ? (sourceMap.get(id) ?? '—') : '—';
+        },
       }),
       columnHelper.accessor('status', {
         header: 'Status',
@@ -331,9 +594,44 @@ export function LeadsListPage() {
         header: 'Created',
         cell: (info) => format(new Date(info.getValue()), 'MMM d, yyyy'),
       }),
+      ...(canManage
+        ? [
+            columnHelper.display({
+              id: 'actions',
+              header: () => <span className="sr-only">Actions</span>,
+              cell: (info) => (
+                <div className="flex justify-end gap-2">
+                  <Button
+                    size="icon"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingLead(info.row.original);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {isAdmin && (
+                    <Button
+                      size="icon"
+                      variant="destructive"
+                      disabled={deleteLeadMutation.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(info.row.original);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ),
+            }),
+          ]
+        : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [staffMap, profile],
+    [staffMap, sourceMap, profile, canManage, isAdmin, deleteLeadMutation.isPending],
   );
 
   const table = useReactTable({
@@ -716,6 +1014,18 @@ export function LeadsListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <EditLeadDialog
+        open={!!editingLead}
+        onOpenChange={(open) => {
+          if (!open) setEditingLead(null);
+        }}
+        lead={editingLead}
+        isAdmin={isAdmin}
+        sources={sourcesQuery.data ?? []}
+        staff={staffQuery.data ?? []}
+        teamLeads={teamLeadsQuery.data ?? []}
+      />
     </div>
   );
 }

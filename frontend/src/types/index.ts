@@ -8,9 +8,12 @@ export type LeadStatus =
   | 'meeting_scheduled'
   | 'follow_up'
   | 'proposal_sent'
+  | 'quotation_sent'
   | 'negotiation'
   | 'won'
   | 'lost'
+  | 'duplicate'
+  | 'invalid'
   | 'closed';
 
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -23,13 +26,28 @@ export const LEAD_STATUSES: LeadStatus[] = [
   'meeting_scheduled',
   'follow_up',
   'proposal_sent',
+  'quotation_sent',
   'negotiation',
   'won',
   'lost',
+  'duplicate',
+  'invalid',
   'closed',
 ];
 
 export const LEAD_PRIORITIES: LeadPriority[] = ['low', 'medium', 'high', 'urgent'];
+
+/** Statuses counted as "in progress" — assigned and being worked, not yet won/lost/closed. */
+export const IN_PROGRESS_STATUSES: LeadStatus[] = [
+  'assigned',
+  'contacted',
+  'interested',
+  'meeting_scheduled',
+  'follow_up',
+  'proposal_sent',
+  'quotation_sent',
+  'negotiation',
+];
 
 export interface UserProfile {
   id: string;
@@ -38,10 +56,22 @@ export interface UserProfile {
   phone: string | null;
   role: Role;
   team_lead_id: string | null;
+  team_id: string | null;
   is_active: boolean;
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  team_lead_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  team_lead: { id: string; full_name: string; email: string } | null;
+  members: { id: string; full_name: string; email: string; is_active: boolean }[];
 }
 
 export interface LeadSource {
@@ -70,8 +100,10 @@ export interface Lead {
   campaign_id: string | null;
   assigned_staff_id: string | null;
   assigned_team_lead_id: string | null;
+  assigned_team_id: string | null;
   status: LeadStatus;
   priority: LeadPriority;
+  tags: string[];
   notes: string | null;
   created_by: string | null;
   created_at: string;

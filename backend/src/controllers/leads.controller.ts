@@ -13,8 +13,13 @@ export async function list(req: Request, res: Response) {
   const page = toPositiveInt(req.query.page, 1);
   const pageSize = toPositiveInt(req.query.pageSize, 20, 100);
 
+  const statusesParam = typeof req.query.statuses === 'string' ? req.query.statuses : undefined;
+
   const filters = {
     status: req.query.status as LeadStatus | undefined,
+    statuses: statusesParam
+      ? (statusesParam.split(',').map((s) => s.trim()).filter(Boolean) as LeadStatus[])
+      : undefined,
     priority: req.query.priority as LeadPriority | undefined,
     sourceId: req.query.sourceId as string | undefined,
     assignedStaffId: req.query.assignedStaffId as string | undefined,
@@ -50,6 +55,11 @@ export async function update(req: Request, res: Response) {
 export async function assign(req: Request, res: Response) {
   const data = await leadsService.assignLead(req.user!, req.params.id, req.body ?? {});
   res.json(data);
+}
+
+export async function remove(req: Request, res: Response) {
+  await leadsService.deleteLead(req.user!, req.params.id);
+  res.status(204).send();
 }
 
 export async function bulkUpload(req: Request, res: Response) {

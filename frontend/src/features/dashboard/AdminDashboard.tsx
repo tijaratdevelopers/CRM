@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutGrid, Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle, Loader } from 'lucide-react';
+import { LayoutGrid, Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatAccent } from '@/features/dashboard/StatCard';
@@ -20,7 +20,6 @@ interface AdminSummary {
   meta_leads: number;
   whatsapp_leads: number;
   active_teams: number;
-  in_progress_leads: number;
 }
 
 async function fetchAdminSummary(): Promise<AdminSummary> {
@@ -48,7 +47,6 @@ export function AdminDashboard() {
     { label: 'Total Calls', value: data?.total_calls ?? '—', icon: <PhoneCall className="h-5 w-5" />, accent: 'sky', to: '/call-logs' },
     { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
     { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, accent: 'rose', to: '/leads' },
-    { label: 'Lead In Progress', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, accent: 'amber', to: '/in-progress-leads' },
   ];
 
   return (

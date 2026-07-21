@@ -129,40 +129,6 @@ export async function createTemplate(user: AuthUser, input: CreateTemplateInput)
   ) as MessageTemplate;
 }
 
-interface UpdateTemplateInput {
-  name?: string;
-  body?: string;
-  variables?: string[];
-}
-
-export async function updateTemplate(id: string, input: UpdateTemplateInput): Promise<MessageTemplate> {
-  const { data, error } = await supabaseAdmin
-    .from('message_templates')
-    .update(input)
-    .eq('id', id)
-    .select()
-    .single();
-
-  if (error || !data) {
-    throw new HttpError(404, 'Template not found');
-  }
-  return data as MessageTemplate;
-}
-
-export async function deleteTemplate(id: string): Promise<void> {
-  const { error, count } = await supabaseAdmin
-    .from('message_templates')
-    .delete({ count: 'exact' })
-    .eq('id', id);
-
-  if (error) {
-    throw new HttpError(500, 'Failed to delete template');
-  }
-  if (!count) {
-    throw new HttpError(404, 'Template not found');
-  }
-}
-
 export interface ConversationSummary {
   leadId: string;
   leadName: string;

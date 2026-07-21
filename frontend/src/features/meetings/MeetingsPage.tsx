@@ -222,15 +222,35 @@ function NewMeetingDialog({
   open,
   onOpenChange,
   staffUsers,
+  meeting,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffUsers: UserProfile[];
+  meeting?: Meeting | null;
 }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isStaffRole = profile?.role === 'staff';
+  const isEdit = !!meeting;
   const schema = React.useMemo(() => buildMeetingSchema(isStaffRole), [isStaffRole]);
+
+  const defaultValues = React.useCallback(
+    (): MeetingFormValues => ({
+      leadId: meeting?.lead_id ?? '',
+      staffId: meeting?.staff_id ?? undefined,
+      title: meeting?.title ?? '',
+      meetingDate: meeting?.meeting_date ?? '',
+      meetingTime: meeting?.meeting_time ?? '',
+      mode: meeting?.mode ?? 'online',
+      meetLink: meeting?.meet_link ?? '',
+      zoomLink: meeting?.zoom_link ?? '',
+      location: meeting?.location ?? '',
+      notes: meeting?.notes ?? '',
+      reminderAt: meeting?.reminder_at ? meeting.reminder_at.slice(0, 16) : '',
+    }),
+    [meeting],
+  );
 
   const {
     register,
@@ -241,40 +261,14 @@ function NewMeetingDialog({
     formState: { errors, isSubmitting },
   } = useForm<MeetingFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      leadId: '',
-      staffId: undefined,
-      title: '',
-      meetingDate: '',
-      meetingTime: '',
-      mode: 'online',
-      meetLink: '',
-      zoomLink: '',
-      location: '',
-      notes: '',
-      reminderAt: '',
-    },
+    defaultValues: defaultValues(),
   });
 
   const mode = watch('mode');
 
   React.useEffect(() => {
-    if (open) {
-      reset({
-        leadId: '',
-        staffId: undefined,
-        title: '',
-        meetingDate: '',
-        meetingTime: '',
-        mode: 'online',
-        meetLink: '',
-        zoomLink: '',
-        location: '',
-        notes: '',
-        reminderAt: '',
-      });
-    }
-  }, [open, reset]);
+    if (open) reset(defaultValues());
+  }, [open, defaultValues, reset]);
 
   const createMutation = useMutation({
     mutationFn: async (values: MeetingFormValues) => {
@@ -303,26 +297,65 @@ function NewMeetingDialog({
     },
   });
 
-  const onSubmit = (values: MeetingFormValues) => createMutation.mutate(values);
-  const submitting = isSubmitting || createMutation.isPending;
+  const updateMutation = useMutation({
+    mutationFn: async (values: MeetingFormValues) => {
+      const { data } = await apiClient.patch<Meeting>(`/meetings/${meeting!.id}`, {
+        title: values.title,
+        meetingDate: values.meetingDate,
+        meetingTime: values.meetingTime,
+        mode: values.mode,
+        meetLink: values.mode === 'online' ? values.meetLink || undefined : undefined,
+        zoomLink: values.mode === 'online' ? values.zoomLink || undefined : undefined,
+        location: values.mode === 'offline' ? values.location || undefined : undefined,
+        notes: values.notes || undefined,
+        reminderAt: values.reminderAt ? new Date(values.reminderAt).toISOString() : undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+      toast.success('Meeting updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const onSubmit = (values: MeetingFormValues) => {
+    if (isEdit) updateMutation.mutate(values);
+    else createMutation.mutate(values);
+  };
+  const submitting = isSubmitting || createMutation.isPending || updateMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Meeting</DialogTitle>
-          <DialogDescription>Schedule a meeting with a lead.</DialogDescription>
+          <DialogTitle>{isEdit ? 'Edit Meeting' : 'New Meeting'}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? 'Update the details of this meeting.' : 'Schedule a meeting with a lead.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Controller
-            control={control}
-            name="leadId"
-            render={({ field }) => (
-              <LeadSearchField value={field.value} onChange={field.onChange} error={errors.leadId?.message} />
-            )}
-          />
+          {isEdit ? (
+            <div className="space-y-1.5">
+              <Label>Lead</Label>
+              <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                <LeadNameCell leadId={meeting!.lead_id} />
+              </div>
+            </div>
+          ) : (
+            <Controller
+              control={control}
+              name="leadId"
+              render={({ field }) => (
+                <LeadSearchField value={field.value} onChange={field.onChange} error={errors.leadId?.message} />
+              )}
+            />
+          )}
 
-          {!isStaffRole && (
+          {!isStaffRole && !isEdit && (
             <div className="space-y-1.5">
               <Label htmlFor="staffId">Staff</Label>
               <Controller
@@ -418,7 +451,7 @@ function NewMeetingDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Scheduling…' : 'Schedule meeting'}
+              {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Schedule meeting'}
             </Button>
           </DialogFooter>
         </form>
@@ -433,6 +466,7 @@ export function MeetingsPage() {
   const canSeeStaff = profile?.role === 'admin' || profile?.role === 'team_lead';
   const [filters, setFilters] = React.useState<MeetingFilters>({ date: '', status: 'all' });
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editingMeeting, setEditingMeeting] = React.useState<Meeting | null>(null);
 
   const meetingsQuery = useQuery({
     queryKey: ['meetings', filters],
@@ -485,6 +519,16 @@ export function MeetingsPage() {
     }
   };
 
+  const handleAddClick = () => {
+    setEditingMeeting(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditClick = (meeting: Meeting) => {
+    setEditingMeeting(meeting);
+    setDialogOpen(true);
+  };
+
   const meetings = meetingsQuery.data ?? [];
   const colCount = canSeeStaff ? 7 : 6;
 
@@ -495,7 +539,7 @@ export function MeetingsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Meetings</h1>
           <p className="text-sm text-muted-foreground">Schedule and track meetings with leads.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>New Meeting</Button>
+        <Button onClick={handleAddClick}>New Meeting</Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -600,6 +644,9 @@ export function MeetingsPage() {
                         </Button>
                       </>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => handleEditClick(meeting)}>
+                      Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="destructive"
@@ -616,7 +663,15 @@ export function MeetingsPage() {
         </Table>
       </div>
 
-      <NewMeetingDialog open={dialogOpen} onOpenChange={setDialogOpen} staffUsers={staffUsers} />
+      <NewMeetingDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingMeeting(null);
+        }}
+        staffUsers={staffUsers}
+        meeting={editingMeeting}
+      />
     </div>
   );
 }

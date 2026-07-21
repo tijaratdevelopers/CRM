@@ -43,8 +43,8 @@ export function Topbar() {
         <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent">
-            <Avatar className="h-7 w-7 ring-2 ring-primary/20">
-              <AvatarFallback className="bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 text-white">
+            <Avatar className="h-7 w-7 ring-2 ring-emerald-500/30 transition-transform hover:scale-105">
+              <AvatarFallback className="bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-800 text-amber-200">
                 {initials || <User className="h-4 w-4" />}
               </AvatarFallback>
             </Avatar>

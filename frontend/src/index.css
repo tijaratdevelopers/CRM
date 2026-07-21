@@ -4,44 +4,47 @@
 
 @layer base {
   :root {
-    --background: 240 33% 99%;
-    --foreground: 240 25% 12%;
+    /* Tijarat Developers brand — emerald (growth/trade) + gold (value) on warm ivory. */
+    --background: 45 40% 98%;
+    --foreground: 168 40% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 25% 12%;
-    --primary: 243 75% 59%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 240 30% 96%;
-    --secondary-foreground: 240 25% 12%;
-    --muted: 240 30% 96%;
-    --muted-foreground: 240 10% 45%;
-    --accent: 258 90% 96%;
-    --accent-foreground: 243 75% 40%;
+    --card-foreground: 168 40% 10%;
+    --primary: 160 84% 27%;
+    --primary-foreground: 45 40% 98%;
+    --secondary: 160 25% 95%;
+    --secondary-foreground: 168 40% 12%;
+    --muted: 150 20% 95%;
+    --muted-foreground: 165 12% 42%;
+    --accent: 158 60% 94%;
+    --accent-foreground: 160 84% 22%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 240 20% 90%;
-    --input: 240 20% 90%;
-    --ring: 243 75% 59%;
-    --radius: 0.75rem;
+    --destructive-foreground: 45 40% 98%;
+    --border: 155 18% 88%;
+    --input: 155 18% 88%;
+    --ring: 160 84% 30%;
+    --radius: 0.85rem;
+    --gold: 40 92% 50%;
   }
 
   .dark {
-    --background: 240 35% 7%;
-    --foreground: 210 40% 98%;
-    --card: 240 30% 10%;
-    --card-foreground: 210 40% 98%;
-    --primary: 243 85% 67%;
-    --primary-foreground: 240 35% 8%;
-    --secondary: 240 20% 16%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 240 20% 16%;
-    --muted-foreground: 240 10% 65%;
-    --accent: 243 40% 20%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 240 20% 20%;
-    --input: 240 20% 20%;
-    --ring: 243 85% 67%;
+    --background: 172 40% 6%;
+    --foreground: 150 30% 96%;
+    --card: 170 35% 9%;
+    --card-foreground: 150 30% 96%;
+    --primary: 158 70% 45%;
+    --primary-foreground: 172 40% 7%;
+    --secondary: 168 25% 15%;
+    --secondary-foreground: 150 30% 96%;
+    --muted: 168 25% 15%;
+    --muted-foreground: 155 12% 62%;
+    --accent: 162 40% 18%;
+    --accent-foreground: 150 30% 96%;
+    --destructive: 0 63% 40%;
+    --destructive-foreground: 150 30% 96%;
+    --border: 168 25% 18%;
+    --input: 168 25% 18%;
+    --ring: 158 70% 45%;
+    --gold: 42 90% 55%;
   }
 
   * {
@@ -72,5 +75,40 @@
 
   .animation-delay-4000 {
     animation-delay: 4s;
+  }
+
+  /* Brand helpers */
+  .text-gold {
+    color: hsl(var(--gold));
+  }
+
+  .text-gradient-brand {
+    background: linear-gradient(100deg, #34d399 0%, #10b981 35%, #f5c445 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-sidebar-brand {
+    background:
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(245, 196, 69, 0.12), transparent),
+      linear-gradient(180deg, #04231b 0%, #06301f 55%, #052018 100%);
+  }
+
+  .sheen-overlay {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .sheen-overlay::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 35%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
+    animation: shine 4.5s ease-in-out infinite;
   }
 }

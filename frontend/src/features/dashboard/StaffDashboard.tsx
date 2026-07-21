@@ -21,7 +21,7 @@ async function fetchStaffSummary(): Promise<StaffSummary> {
   return data;
 }
 
-const BAR_COLORS = ['#7c3aed', '#0ea5e9', '#f59e0b', '#f43f5e', '#10b981'];
+const BAR_COLORS = ['#059669', '#0d9488', '#f5c445', '#e11d48', '#10b981'];
 
 export function StaffDashboard() {
   const { profile } = useAuth();
@@ -30,12 +30,12 @@ export function StaffDashboard() {
     queryFn: fetchStaffSummary,
   });
 
-  const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent }[] = [
-    { label: 'My Leads', value: data?.my_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'violet' },
-    { label: 'Calls Today', value: data?.calls_today ?? '—', icon: <PhoneCall className="h-5 w-5" />, accent: 'sky' },
-    { label: 'Meetings Today', value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'amber' },
-    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'rose' },
-    { label: 'New Leads', value: data?.new_leads ?? '—', icon: <Sparkles className="h-5 w-5" />, accent: 'emerald' },
+  const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent; to: string }[] = [
+    { label: 'My Leads', value: data?.my_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'violet', to: '/leads' },
+    { label: 'Calls Today', value: data?.calls_today ?? '—', icon: <PhoneCall className="h-5 w-5" />, accent: 'sky', to: '/call-logs' },
+    { label: 'Meetings Today', value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'amber', to: '/meetings' },
+    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'rose', to: '/follow-ups' },
+    { label: 'New Leads', value: data?.new_leads ?? '—', icon: <Sparkles className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
   ];
 
   const chartData = data
@@ -51,10 +51,10 @@ export function StaffDashboard() {
   return (
     <div className="flex flex-col gap-6">
       <DashboardHero
-        eyebrow="Your workspace"
+        eyebrow="Tijarat Developers · My Desk"
         title={`Good to see you${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}`}
-        subtitle="Here's your activity for today — leads, calls, meetings and follow-ups, all in one place."
-        gradient="bg-gradient-to-br from-amber-500 via-orange-500 to-rose-500"
+        subtitle="Your leads arrive here automatically — call, follow up, and close. Today's pipeline is ready for you."
+        gradient="bg-gradient-to-br from-amber-500 via-amber-600 to-emerald-700"
         icon={<UserCircle2 className="h-8 w-8" />}
       />
 
@@ -67,7 +67,7 @@ export function StaffDashboard() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           {stats.map((stat, i) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} accent={stat.accent} index={i} />
+            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} accent={stat.accent} index={i} to={stat.to} />
           ))}
         </div>
       )}

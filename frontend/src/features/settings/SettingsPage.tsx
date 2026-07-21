@@ -1,10 +1,11 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Check, Copy, ExternalLink, Pencil, Plus, ShieldCheck, ShieldAlert, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import type { Campaign, LeadSource } from '@/types';
@@ -12,9 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { MetaIntegrationTab } from './MetaIntegrationTab';
 import {
   Table,
   TableBody,
@@ -522,114 +522,6 @@ function CampaignsTab() {
   );
 }
 
-interface MetaIntegrationStatus {
-  webhookUrl: string;
-  verifyToken: string;
-  pageAccessTokenConfigured: boolean;
-  appSecretConfigured: boolean;
-}
-
-function CopyField({ label, value }: { label: string; value: string }) {
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(value);
-    toast.success(`${label} copied`);
-  };
-
-  return (
-    <div className="space-y-1.5">
-      <Label>{label}</Label>
-      <div className="flex gap-2">
-        <Input readOnly value={value} className="font-mono text-xs" onFocus={(e) => e.target.select()} />
-        <Button type="button" variant="outline" size="icon" onClick={handleCopy}>
-          <Copy className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
-  return (
-    <Badge variant={ok ? 'default' : 'secondary'} className="gap-1">
-      {ok ? <ShieldCheck className="h-3 w-3" /> : <ShieldAlert className="h-3 w-3" />}
-      {label}
-    </Badge>
-  );
-}
-
-function MetaIntegrationTab() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['meta-integration-status'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<MetaIntegrationStatus>('/meta/status');
-      return data;
-    },
-  });
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base text-foreground">Meta Lead Ads</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Connect a Facebook/Instagram Lead Ad so every form submission shows up here as a lead automatically.
-        </p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-5">
-        {isLoading || !data ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <>
-            <div className="flex flex-wrap gap-2">
-              <StatusBadge ok={data.pageAccessTokenConfigured} label={data.pageAccessTokenConfigured ? 'Page access token connected' : 'Page access token missing'} />
-              <StatusBadge ok={data.appSecretConfigured} label={data.appSecretConfigured ? 'Signature verification on' : 'Signature verification off'} />
-            </div>
-
-            <CopyField label="Webhook callback URL" value={data.webhookUrl} />
-            <CopyField label="Verify token" value={data.verifyToken} />
-
-            <div className="rounded-lg border bg-muted/40 p-4 text-sm">
-              <p className="mb-2 font-medium text-foreground">How to connect</p>
-              <ol className="list-decimal space-y-1.5 pl-4 text-muted-foreground">
-                <li>
-                  In{' '}
-                  <a
-                    href="https://developers.facebook.com/apps"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
-                  >
-                    Meta for Developers <ExternalLink className="h-3 w-3" />
-                  </a>
-                  , create (or open) an app and add the <strong>Webhooks</strong> and <strong>Lead Ads</strong> products.
-                </li>
-                <li>
-                  Under Webhooks, subscribe your Page to the <strong>leadgen</strong> field, and paste the callback URL and
-                  verify token above.
-                </li>
-                <li>
-                  Generate a Page Access Token with the <code>leads_retrieval</code> and <code>pages_show_list</code>{' '}
-                  permissions, and set it as <code>META_PAGE_ACCESS_TOKEN</code> in the backend's <code>.env</code> file.
-                </li>
-                <li>
-                  Create a Lead Ad on Facebook/Instagram — every form submission will now appear in <strong>Leads</strong>{' '}
-                  here within seconds, unassigned and ready to be picked up.
-                </li>
-              </ol>
-            </div>
-
-            {!data.pageAccessTokenConfigured && (
-              <p className="text-xs text-muted-foreground">
-                Until a page access token is set, new leads still arrive but without the submitted name/phone/email —
-                only a placeholder record.
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
 function IntegrationsTab() {
   return (
     <div className="flex flex-col gap-4">
@@ -665,7 +557,13 @@ function RolesTab() {
   );
 }
 
+const SETTINGS_TABS = ['lead-sources', 'campaigns', 'integrations', 'roles'];
+
 export function SettingsPage() {
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const defaultTab = tabParam && SETTINGS_TABS.includes(tabParam) ? tabParam : 'lead-sources';
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -675,7 +573,7 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="lead-sources">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="lead-sources">Lead Sources</TabsTrigger>
           <TabsTrigger value="campaigns">Campaigns</TabsTrigger>

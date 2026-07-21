@@ -76,12 +76,25 @@ function NewTaskDialog({
   open,
   onOpenChange,
   staffUsers,
+  task,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffUsers: UserProfile[];
+  task?: Task | null;
 }) {
   const queryClient = useQueryClient();
+  const isEdit = !!task;
+
+  const defaultValues = React.useCallback(
+    (): TaskFormValues => ({
+      title: task?.title ?? '',
+      description: task?.description ?? '',
+      assignedTo: task?.assigned_to ?? '',
+      dueDate: task?.due_date ?? '',
+    }),
+    [task],
+  );
 
   const {
     register,
@@ -91,12 +104,12 @@ function NewTaskDialog({
     formState: { errors, isSubmitting },
   } = useForm<TaskFormValues>({
     resolver: zodResolver(taskFormSchema),
-    defaultValues: { title: '', description: '', assignedTo: '', dueDate: '' },
+    defaultValues: defaultValues(),
   });
 
   React.useEffect(() => {
-    if (open) reset({ title: '', description: '', assignedTo: '', dueDate: '' });
-  }, [open, reset]);
+    if (open) reset(defaultValues());
+  }, [open, defaultValues, reset]);
 
   const createMutation = useMutation({
     mutationFn: async (values: TaskFormValues) => {
@@ -118,15 +131,40 @@ function NewTaskDialog({
     },
   });
 
-  const onSubmit = (values: TaskFormValues) => createMutation.mutate(values);
-  const submitting = isSubmitting || createMutation.isPending;
+  const updateMutation = useMutation({
+    mutationFn: async (values: TaskFormValues) => {
+      const { data } = await apiClient.patch<Task>(`/tasks/${task!.id}`, {
+        title: values.title,
+        description: values.description || undefined,
+        assignedTo: values.assignedTo,
+        dueDate: values.dueDate || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      toast.success('Task updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const onSubmit = (values: TaskFormValues) => {
+    if (isEdit) updateMutation.mutate(values);
+    else createMutation.mutate(values);
+  };
+  const submitting = isSubmitting || createMutation.isPending || updateMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Task</DialogTitle>
-          <DialogDescription>Assign a task to a staff member.</DialogDescription>
+          <DialogTitle>{isEdit ? 'Edit Task' : 'New Task'}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? 'Update this task.' : 'Assign a task to a staff member.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-1.5">
@@ -173,7 +211,7 @@ function NewTaskDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Creating…' : 'Create task'}
+              {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Create task'}
             </Button>
           </DialogFooter>
         </form>
@@ -187,6 +225,7 @@ export function TasksPage() {
   const queryClient = useQueryClient();
   const canManage = profile?.role === 'admin' || profile?.role === 'team_lead';
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editingTask, setEditingTask] = React.useState<Task | null>(null);
 
   const tasksQuery = useQuery({
     queryKey: ['tasks'],
@@ -261,6 +300,16 @@ export function TasksPage() {
     }
   };
 
+  const handleAddClick = () => {
+    setEditingTask(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditClick = (task: Task) => {
+    setEditingTask(task);
+    setDialogOpen(true);
+  };
+
   const resolveAssignee = (task: Task): string => {
     if (!task.assigned_to) return '—';
     if (task.assigned_to === profile?.id) return `${profile?.full_name ?? 'You'} (you)`;
@@ -281,7 +330,7 @@ export function TasksPage() {
             {canManage ? 'Assign and review tasks for your team.' : 'Tasks assigned to you.'}
           </p>
         </div>
-        {canManage && <Button onClick={() => setDialogOpen(true)}>New Task</Button>}
+        {canManage && <Button onClick={handleAddClick}>New Task</Button>}
       </div>
 
       <div className="rounded-lg border">
@@ -360,6 +409,11 @@ export function TasksPage() {
                         </>
                       )}
                       {canDelete && (
+                        <Button size="sm" variant="outline" onClick={() => handleEditClick(task)}>
+                          Edit
+                        </Button>
+                      )}
+                      {canDelete && (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -378,7 +432,17 @@ export function TasksPage() {
         </Table>
       </div>
 
-      {canManage && <NewTaskDialog open={dialogOpen} onOpenChange={setDialogOpen} staffUsers={staffUsers} />}
+      {canManage && (
+        <NewTaskDialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setEditingTask(null);
+          }}
+          staffUsers={staffUsers}
+          task={editingTask}
+        />
+      )}
     </div>
   );
 }

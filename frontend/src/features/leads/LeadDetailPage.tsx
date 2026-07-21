@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import { Pencil, Trash2 } from 'lucide-react';
 
 import { apiClient } from '@/lib/apiClient';
 import { supabase } from '@/lib/supabaseClient';
@@ -23,6 +24,7 @@ import { LEAD_PRIORITIES, LEAD_STATUSES } from '@/types';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -33,6 +35,13 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface LeadDocument {
   id: string;
@@ -80,8 +89,146 @@ function formatLabel(value: string) {
     .join(' ');
 }
 
+function EditLeadInfoDialog({
+  open,
+  onOpenChange,
+  lead,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  lead: Lead;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = React.useState({
+    name: lead.name,
+    phone: lead.phone ?? '',
+    whatsapp: lead.whatsapp ?? '',
+    email: lead.email ?? '',
+    company: lead.company ?? '',
+    city: lead.city ?? '',
+    country: lead.country ?? '',
+  });
+
+  React.useEffect(() => {
+    if (open) {
+      setForm({
+        name: lead.name,
+        phone: lead.phone ?? '',
+        whatsapp: lead.whatsapp ?? '',
+        email: lead.email ?? '',
+        company: lead.company ?? '',
+        city: lead.city ?? '',
+        country: lead.country ?? '',
+      });
+    }
+  }, [open, lead]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.patch<Lead>(`/leads/${lead.id}`, {
+        name: form.name,
+        phone: form.phone || undefined,
+        whatsapp: form.whatsapp || undefined,
+        email: form.email || undefined,
+        company: form.company || undefined,
+        city: form.city || undefined,
+        country: form.country || undefined,
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['lead', lead.id], data);
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Lead details updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Lead Details</DialogTitle>
+        </DialogHeader>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-name">Name *</Label>
+            <Input
+              id="edit-detail-name"
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-phone">Phone</Label>
+            <Input
+              id="edit-detail-phone"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-whatsapp">WhatsApp</Label>
+            <Input
+              id="edit-detail-whatsapp"
+              value={form.whatsapp}
+              onChange={(e) => setForm((f) => ({ ...f, whatsapp: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-email">Email</Label>
+            <Input
+              id="edit-detail-email"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-company">Company</Label>
+            <Input
+              id="edit-detail-company"
+              value={form.company}
+              onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-city">City</Label>
+            <Input
+              id="edit-detail-city"
+              value={form.city}
+              onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-detail-country">Country</Label>
+            <Input
+              id="edit-detail-country"
+              value={form.country}
+              onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            disabled={!form.name.trim() || updateMutation.isPending}
+            onClick={() => updateMutation.mutate()}
+          >
+            {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { profile } = useAuth();
   const queryClient = useQueryClient();
 
@@ -98,12 +245,36 @@ export function LeadDetailPage() {
   });
 
   const [notes, setNotes] = React.useState('');
+  const [tagsInput, setTagsInput] = React.useState('');
   const [assignedStaffId, setAssignedStaffId] = React.useState('none');
   const [assignedTeamLeadId, setAssignedTeamLeadId] = React.useState('none');
+  const [editInfoOpen, setEditInfoOpen] = React.useState(false);
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      await apiClient.delete(`/leads/${id}`);
+    },
+    onSuccess: () => {
+      toast.success('Lead deleted');
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      navigate('/leads');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleDeleteLead = () => {
+    if (
+      leadQuery.data &&
+      window.confirm(`Delete lead "${leadQuery.data.name}"? This also removes its meetings, follow-ups and call logs.`)
+    ) {
+      deleteMutation.mutate();
+    }
+  };
 
   React.useEffect(() => {
     if (leadQuery.data) {
       setNotes(leadQuery.data.notes ?? '');
+      setTagsInput((leadQuery.data.tags ?? []).join(', '));
       setAssignedStaffId(leadQuery.data.assigned_staff_id ?? 'none');
       setAssignedTeamLeadId(leadQuery.data.assigned_team_lead_id ?? 'none');
     }
@@ -128,7 +299,7 @@ export function LeadDetailPage() {
   });
 
   const patchMutation = useMutation({
-    mutationFn: async (payload: Partial<Pick<Lead, 'status' | 'priority' | 'notes'>>) => {
+    mutationFn: async (payload: Partial<Pick<Lead, 'status' | 'priority' | 'tags' | 'notes'>>) => {
       const { data } = await apiClient.patch<Lead>(`/leads/${id}`, payload);
       return data;
     },
@@ -263,9 +434,24 @@ export function LeadDetailPage() {
               </p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-start gap-2">
             <Badge variant={statusBadgeVariant(lead.status)}>{formatLabel(lead.status)}</Badge>
             <Badge variant={priorityBadgeVariant(lead.priority)}>{formatLabel(lead.priority)}</Badge>
+            {canManage && (
+              <Button size="sm" variant="outline" onClick={() => setEditInfoOpen(true)}>
+                <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={deleteMutation.isPending}
+                onClick={handleDeleteLead}
+              >
+                <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -305,6 +491,43 @@ export function LeadDetailPage() {
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tags</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(leadQuery.data?.tags ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {leadQuery.data!.tags.map((tag) => (
+                <Badge key={tag} variant="secondary">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+          <Input
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            placeholder="Comma-separated tags, e.g. hot, priority-client"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={patchMutation.isPending}
+            onClick={() =>
+              patchMutation.mutate({
+                tags: tagsInput
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+              })
+            }
+          >
+            {patchMutation.isPending ? 'Saving…' : 'Save Tags'}
+          </Button>
         </CardContent>
       </Card>
 
@@ -533,6 +756,8 @@ export function LeadDetailPage() {
           </Tabs>
         </CardContent>
       </Card>
+
+      <EditLeadInfoDialog open={editInfoOpen} onOpenChange={setEditInfoOpen} lead={lead} />
     </div>
   );
 }

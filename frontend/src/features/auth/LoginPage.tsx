@@ -1,17 +1,34 @@
 import * as React from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Mail, Lock, Eye, EyeOff, ShieldCheck, BarChart3, Users2, Sparkles } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, ShieldCheck, Shuffle, Megaphone } from 'lucide-react';
 import { useAuth } from './AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const HIGHLIGHTS = [
-  { icon: Users2, label: 'Unified team workspace', desc: 'Admins, team leads & staff in one flow' },
-  { icon: BarChart3, label: 'Live pipeline insights', desc: 'Real-time charts on every lead stage' },
-  { icon: ShieldCheck, label: 'Role-based access', desc: 'Secure, permissioned by design' },
+  { icon: Shuffle, label: 'Automatic lead distribution', desc: 'Round-robin engine shares every lead fairly across teams' },
+  { icon: Megaphone, label: 'Meta Ads & WhatsApp ready', desc: 'Leads flow straight from your campaigns into the pipeline' },
+  { icon: ShieldCheck, label: 'Role-based security', desc: 'Admin, team lead and staff — each sees exactly their work' },
 ];
+
+function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
+  return (
+    <div
+      className={
+        size === 'lg'
+          ? 'relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-800 shadow-lg shadow-emerald-900/40'
+          : 'relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/15 backdrop-blur-sm'
+      }
+    >
+      <span className={size === 'lg' ? 'text-base font-extrabold text-amber-300' : 'text-sm font-extrabold text-amber-300'}>
+        TD
+      </span>
+      <span className="sheen-overlay rounded-2xl" />
+    </div>
+  );
+}
 
 export function LoginPage() {
   const { session, signIn } = useAuth();
@@ -38,28 +55,35 @@ export function LoginPage() {
     <div className="relative flex min-h-screen w-full overflow-hidden bg-background font-sans">
       {/* Left brand panel */}
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 bg-[length:200%_200%] animate-gradient-x" />
+        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-700 to-teal-600 bg-[length:200%_200%] animate-gradient-x" />
         <div className="absolute inset-0 bg-grid-pattern opacity-20" />
 
         {/* animated blobs */}
-        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-white/20 mix-blend-soft-light blur-3xl animate-blob" />
-        <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-cyan-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-2000" />
-        <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-fuchsia-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-4000" />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-amber-300/20 mix-blend-soft-light blur-3xl animate-blob" />
+        <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-emerald-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-2000" />
+        <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-teal-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-4000" />
 
-        <div className="relative z-10 flex items-center gap-2 animate-fade-in-up">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-            <Sparkles className="h-5 w-5" />
+        <div className="relative z-10 flex items-center gap-2.5 animate-fade-in-up">
+          <BrandMark />
+          <div className="flex flex-col leading-tight">
+            <span className="text-lg font-extrabold tracking-tight">
+              Tijarat <span className="text-amber-300">Developers</span>
+            </span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-200/80">CRM Suite</span>
           </div>
-          <span className="text-xl font-extrabold tracking-tight">Nexora CRM</span>
         </div>
 
         <div className="relative z-10 max-w-md animate-fade-in-up [animation-delay:150ms]">
           <h1 className="text-4xl font-extrabold leading-tight tracking-tight">
-            Turn every lead into a relationship that grows revenue.
+            Every lead captured.
+            <br />
+            Every deal followed.
+            <br />
+            <span className="text-amber-300">Zero business lost.</span>
           </h1>
           <p className="mt-4 text-sm text-white/80">
-            One workspace for your admins, team leads and staff — leads, meetings, follow-ups and reports, all
-            connected in real time.
+            Leads from Meta Ads, WhatsApp and your campaigns are distributed to your teams automatically — fairly,
+            instantly, and tracked all the way to the close.
           </p>
 
           <div className="mt-10 space-y-4">
@@ -82,7 +106,7 @@ export function LoginPage() {
         </div>
 
         <p className="relative z-10 text-xs text-white/60 animate-fade-in-up [animation-delay:600ms]">
-          © {new Date().getFullYear()} Nexora CRM. Crafted for high-performing sales teams.
+          © {new Date().getFullYear()} Tijarat Developers CRM. Built for businesses that never miss a lead.
         </p>
       </div>
 
@@ -93,10 +117,12 @@ export function LoginPage() {
 
         <div className="relative z-10 w-full max-w-sm animate-fade-in-up">
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-sky-500 shadow-lg shadow-primary/30 lg:hidden">
-              <Sparkles className="h-6 w-6 text-white" />
+            <div className="mb-4 lg:hidden">
+              <BrandMark size="lg" />
             </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">Welcome back</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-foreground">
+              Welcome to <span className="text-gradient-brand">Tijarat Developers CRM</span>
+            </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Sign in with the account your administrator created for you.
             </p>
@@ -149,7 +175,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="relative w-full overflow-hidden bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-500 bg-[length:200%_200%] text-white shadow-lg shadow-primary/25 transition-all hover:shadow-primary/40 hover:brightness-110 animate-gradient-x"
+                className="relative w-full overflow-hidden bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-500 bg-[length:200%_200%] text-white shadow-lg shadow-emerald-600/25 transition-all hover:shadow-emerald-600/40 hover:brightness-110 animate-gradient-x"
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </Button>

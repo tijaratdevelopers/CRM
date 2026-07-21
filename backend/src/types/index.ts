@@ -17,9 +17,12 @@ export type LeadStatus =
   | 'meeting_scheduled'
   | 'follow_up'
   | 'proposal_sent'
+  | 'quotation_sent'
   | 'negotiation'
   | 'won'
   | 'lost'
+  | 'duplicate'
+  | 'invalid'
   | 'closed';
 
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';

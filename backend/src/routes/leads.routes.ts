@@ -14,6 +14,7 @@ leadsRouter.get('/:id', leadsController.getById);
 leadsRouter.post('/', requireRole('admin', 'team_lead'), leadsController.create);
 leadsRouter.patch('/:id', requireRole('admin', 'team_lead', 'staff'), leadsController.update);
 leadsRouter.patch('/:id/assign', requireRole('admin', 'team_lead'), leadsController.assign);
+leadsRouter.delete('/:id', requireRole('admin'), leadsController.remove);
 leadsRouter.post(
   '/bulk-upload',
   requireRole('admin', 'team_lead'),

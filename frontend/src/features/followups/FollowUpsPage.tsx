@@ -216,15 +216,29 @@ function NewFollowUpDialog({
   open,
   onOpenChange,
   staffUsers,
+  followUp,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   staffUsers: UserProfile[];
+  followUp?: FollowUp | null;
 }) {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const isStaffRole = profile?.role === 'staff';
+  const isEdit = !!followUp;
   const schema = React.useMemo(() => buildFollowUpSchema(isStaffRole), [isStaffRole]);
+
+  const defaultValues = React.useCallback(
+    (): FollowUpFormValues => ({
+      leadId: followUp?.lead_id ?? '',
+      staffId: followUp?.staff_id ?? undefined,
+      reminderDate: followUp?.reminder_date ?? '',
+      reminderTime: followUp?.reminder_time ?? '',
+      notes: followUp?.notes ?? '',
+    }),
+    [followUp],
+  );
 
   const {
     register,
@@ -234,20 +248,12 @@ function NewFollowUpDialog({
     formState: { errors, isSubmitting },
   } = useForm<FollowUpFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      leadId: '',
-      staffId: undefined,
-      reminderDate: '',
-      reminderTime: '',
-      notes: '',
-    },
+    defaultValues: defaultValues(),
   });
 
   React.useEffect(() => {
-    if (open) {
-      reset({ leadId: '', staffId: undefined, reminderDate: '', reminderTime: '', notes: '' });
-    }
-  }, [open, reset]);
+    if (open) reset(defaultValues());
+  }, [open, defaultValues, reset]);
 
   const createMutation = useMutation({
     mutationFn: async (values: FollowUpFormValues) => {
@@ -270,26 +276,59 @@ function NewFollowUpDialog({
     },
   });
 
-  const onSubmit = (values: FollowUpFormValues) => createMutation.mutate(values);
-  const submitting = isSubmitting || createMutation.isPending;
+  const updateMutation = useMutation({
+    mutationFn: async (values: FollowUpFormValues) => {
+      const { data } = await apiClient.patch<FollowUp>(`/follow-ups/${followUp!.id}`, {
+        reminderDate: values.reminderDate,
+        reminderTime: values.reminderTime,
+        notes: values.notes,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['follow-ups'] });
+      toast.success('Follow-up updated');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const onSubmit = (values: FollowUpFormValues) => {
+    if (isEdit) updateMutation.mutate(values);
+    else createMutation.mutate(values);
+  };
+  const submitting = isSubmitting || createMutation.isPending || updateMutation.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Follow-up</DialogTitle>
-          <DialogDescription>Set a reminder to follow up with a lead.</DialogDescription>
+          <DialogTitle>{isEdit ? 'Edit Follow-up' : 'New Follow-up'}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? 'Update this reminder.' : 'Set a reminder to follow up with a lead.'}
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Controller
-            control={control}
-            name="leadId"
-            render={({ field }) => (
-              <LeadSearchField value={field.value} onChange={field.onChange} error={errors.leadId?.message} />
-            )}
-          />
+          {isEdit ? (
+            <div className="space-y-1.5">
+              <Label>Lead</Label>
+              <div className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+                <LeadNameCell leadId={followUp!.lead_id} />
+              </div>
+            </div>
+          ) : (
+            <Controller
+              control={control}
+              name="leadId"
+              render={({ field }) => (
+                <LeadSearchField value={field.value} onChange={field.onChange} error={errors.leadId?.message} />
+              )}
+            />
+          )}
 
-          {!isStaffRole && (
+          {!isStaffRole && !isEdit && (
             <div className="space-y-1.5">
               <Label htmlFor="staffId">Staff</Label>
               <Controller
@@ -338,7 +377,7 @@ function NewFollowUpDialog({
               Cancel
             </Button>
             <Button type="submit" disabled={submitting}>
-              {submitting ? 'Saving…' : 'Create follow-up'}
+              {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Create follow-up'}
             </Button>
           </DialogFooter>
         </form>
@@ -353,6 +392,7 @@ export function FollowUpsPage() {
   const canSeeStaff = profile?.role === 'admin' || profile?.role === 'team_lead';
   const [filters, setFilters] = React.useState<FollowUpFilters>({ date: '', status: 'all' });
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [editingFollowUp, setEditingFollowUp] = React.useState<FollowUp | null>(null);
 
   const followUpsQuery = useQuery({
     queryKey: ['follow-ups', filters],
@@ -400,6 +440,16 @@ export function FollowUpsPage() {
     }
   };
 
+  const handleAddClick = () => {
+    setEditingFollowUp(null);
+    setDialogOpen(true);
+  };
+
+  const handleEditClick = (followUp: FollowUp) => {
+    setEditingFollowUp(followUp);
+    setDialogOpen(true);
+  };
+
   const followUps = followUpsQuery.data ?? [];
 
   return (
@@ -409,7 +459,7 @@ export function FollowUpsPage() {
           <h1 className="text-2xl font-semibold text-foreground">Follow-ups</h1>
           <p className="text-sm text-muted-foreground">Track reminders for leads that need a follow-up.</p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>New Follow-up</Button>
+        <Button onClick={handleAddClick}>New Follow-up</Button>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -511,6 +561,9 @@ export function FollowUpsPage() {
                         </Button>
                       </>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => handleEditClick(followUp)}>
+                      Edit
+                    </Button>
                     <Button
                       size="sm"
                       variant="destructive"
@@ -527,7 +580,15 @@ export function FollowUpsPage() {
         </Table>
       </div>
 
-      <NewFollowUpDialog open={dialogOpen} onOpenChange={setDialogOpen} staffUsers={staffUsers} />
+      <NewFollowUpDialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingFollowUp(null);
+        }}
+        staffUsers={staffUsers}
+        followUp={editingFollowUp}
+      />
     </div>
   );
 }
