@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
-import { UserCircle2, Contact, PhoneCall, CalendarClock, BellRing, Sparkles } from 'lucide-react';
+import { UserCircle2, Contact, PhoneCall, CalendarClock, BellRing, Sparkles, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatAccent } from '@/features/dashboard/StatCard';
@@ -14,6 +14,7 @@ interface StaffSummary {
   meetings_today: number;
   pending_follow_ups: number;
   new_leads: number;
+  in_progress_leads: number;
 }
 
 async function fetchStaffSummary(): Promise<StaffSummary> {
@@ -21,7 +22,7 @@ async function fetchStaffSummary(): Promise<StaffSummary> {
   return data;
 }
 
-const BAR_COLORS = ['#059669', '#0d9488', '#f5c445', '#e11d48', '#10b981'];
+const BAR_COLORS = ['#059669', '#0d9488', '#f5c445', '#e11d48', '#10b981', '#6366f1'];
 
 export function StaffDashboard() {
   const { profile } = useAuth();
@@ -36,6 +37,7 @@ export function StaffDashboard() {
     { label: 'Meetings Today', value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'amber', to: '/meetings' },
     { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'rose', to: '/follow-ups' },
     { label: 'New Leads', value: data?.new_leads ?? '—', icon: <Sparkles className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
+    { label: 'In Progress Leads', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, accent: 'amber', to: '/leads/in-progress' },
   ];
 
   const chartData = data
@@ -45,6 +47,7 @@ export function StaffDashboard() {
         { name: 'Meetings', value: data.meetings_today },
         { name: 'Follow-ups', value: data.pending_follow_ups },
         { name: 'New', value: data.new_leads },
+        { name: 'In Progress', value: data.in_progress_leads },
       ]
     : [];
 
@@ -60,7 +63,7 @@ export function StaffDashboard() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 5 }).map((_, i) => (
+          {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg border bg-muted/40" />
           ))}
         </div>

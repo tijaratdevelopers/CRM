@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { UsersRound, UserCog, Contact, BellRing, CalendarClock, TrendingUp, TrendingDown } from 'lucide-react';
+import { UsersRound, UserCog, Contact, BellRing, CalendarClock, TrendingUp, TrendingDown, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatAccent } from '@/features/dashboard/StatCard';
@@ -14,6 +14,7 @@ interface TeamLeadSummary {
   meetings_today: number;
   won_leads: number;
   lost_leads: number;
+  in_progress_leads: number;
 }
 
 async function fetchTeamLeadSummary(): Promise<TeamLeadSummary> {
@@ -33,6 +34,7 @@ export function TeamLeadDashboard() {
     { label: 'Assigned Leads', value: data?.assigned_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'sky', to: '/leads' },
     { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'amber', to: '/follow-ups' },
     { label: "Today's Meetings", value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'violet', to: '/meetings' },
+    { label: 'In Progress Leads', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, accent: 'amber', to: '/leads/in-progress' },
     { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
     { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, accent: 'rose', to: '/leads' },
   ];
@@ -49,7 +51,7 @@ export function TeamLeadDashboard() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="h-24 animate-pulse rounded-lg border bg-muted/40" />
           ))}
         </div>
