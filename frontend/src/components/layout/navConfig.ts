@@ -13,6 +13,7 @@ import {
   BarChart3,
   History,
   Settings,
+  Loader,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,6 +27,12 @@ export interface NavItem {
 export const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Leads', to: '/leads', icon: Contact, roles: ['admin', 'team_lead', 'staff'] },
+  {
+    label: 'In Progress Leads',
+    to: '/leads/in-progress',
+    icon: Loader,
+    roles: ['admin', 'team_lead', 'staff'],
+  },
   { label: 'Meetings', to: '/meetings', icon: CalendarClock, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Follow-ups', to: '/follow-ups', icon: BellRing, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Call Logs', to: '/call-logs', icon: PhoneCall, roles: ['admin', 'team_lead', 'staff'] },

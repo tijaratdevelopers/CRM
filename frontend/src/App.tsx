@@ -11,6 +11,7 @@ import { RoleGuard } from '@/components/layout/RoleGuard';
 
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const LeadsListPage = lazy(() => import('@/features/leads/LeadsListPage').then((m) => ({ default: m.LeadsListPage })));
+const InProgressLeadsPage = lazy(() => import('@/features/leads/InProgressLeadsPage').then((m) => ({ default: m.InProgressLeadsPage })));
 const LeadDetailPage = lazy(() => import('@/features/leads/LeadDetailPage').then((m) => ({ default: m.LeadDetailPage })));
 const MeetingsPage = lazy(() => import('@/features/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })));
 const FollowUpsPage = lazy(() => import('@/features/followups/FollowUpsPage').then((m) => ({ default: m.FollowUpsPage })));
@@ -45,6 +46,7 @@ export default function App() {
             <Route element={<ProtectedRoute />}>
               <Route index element={<DashboardPage />} />
               <Route path="leads" element={<LeadsListPage />} />
+              <Route path="leads/in-progress" element={<InProgressLeadsPage />} />
               <Route path="leads/:id" element={<LeadDetailPage />} />
               <Route path="meetings" element={<MeetingsPage />} />
               <Route path="follow-ups" element={<FollowUpsPage />} />
