@@ -26,6 +26,7 @@ import type {
   UserProfile,
 } from '@/types';
 import { LEAD_PRIORITIES, LEAD_STATUSES } from '@/types';
+import { InProgressLeads } from '@/features/dashboard/InProgressLeads';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -805,6 +806,8 @@ export function LeadsListPage() {
           </Button>
         </div>
       </div>
+
+      <InProgressLeads />
 
       <Dialog
         open={addOpen}

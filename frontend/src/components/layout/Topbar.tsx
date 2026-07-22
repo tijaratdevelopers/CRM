@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { LogOut, User } from 'lucide-react';
+import { LogOut, Menu, User } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -20,7 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
   staff: 'Staff',
 };
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -38,7 +38,17 @@ export function Topbar() {
 
   return (
     <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b bg-card/80 px-4 backdrop-blur-md">
-      <GlobalSearch />
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <GlobalSearch />
+      </div>
       <div className="flex items-center gap-2">
         <NotificationBell />
         <DropdownMenu>

@@ -1,33 +1,44 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
+import { Loader2 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/features/auth/AuthContext';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { RoleGuard } from '@/components/layout/RoleGuard';
 
-import { DashboardPage } from '@/features/dashboard/DashboardPage';
-import { LeadsListPage } from '@/features/leads/LeadsListPage';
-import { LeadDetailPage } from '@/features/leads/LeadDetailPage';
-import { MeetingsPage } from '@/features/meetings/MeetingsPage';
-import { FollowUpsPage } from '@/features/followups/FollowUpsPage';
-import { CallLogsPage } from '@/features/calllogs/CallLogsPage';
-import { TasksPage } from '@/features/tasks/TasksPage';
-import { WhatsAppPage } from '@/features/whatsapp/WhatsAppPage';
-import { ReportsPage } from '@/features/reports/ReportsPage';
-import { UsersPage } from '@/features/users/UsersPage';
-import { TeamLeadsPage } from '@/features/teamleads/TeamLeadsPage';
-import { TeamsPage } from '@/features/teams/TeamsPage';
-import { StaffPage } from '@/features/staff/StaffPage';
-import { ActivityLogsPage } from '@/features/activitylogs/ActivityLogsPage';
-import { SettingsPage } from '@/features/settings/SettingsPage';
+const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const LeadsListPage = lazy(() => import('@/features/leads/LeadsListPage').then((m) => ({ default: m.LeadsListPage })));
+const LeadDetailPage = lazy(() => import('@/features/leads/LeadDetailPage').then((m) => ({ default: m.LeadDetailPage })));
+const MeetingsPage = lazy(() => import('@/features/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })));
+const FollowUpsPage = lazy(() => import('@/features/followups/FollowUpsPage').then((m) => ({ default: m.FollowUpsPage })));
+const CallLogsPage = lazy(() => import('@/features/calllogs/CallLogsPage').then((m) => ({ default: m.CallLogsPage })));
+const TasksPage = lazy(() => import('@/features/tasks/TasksPage').then((m) => ({ default: m.TasksPage })));
+const WhatsAppPage = lazy(() => import('@/features/whatsapp/WhatsAppPage').then((m) => ({ default: m.WhatsAppPage })));
+const ReportsPage = lazy(() => import('@/features/reports/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const UsersPage = lazy(() => import('@/features/users/UsersPage').then((m) => ({ default: m.UsersPage })));
+const TeamLeadsPage = lazy(() => import('@/features/teamleads/TeamLeadsPage').then((m) => ({ default: m.TeamLeadsPage })));
+const TeamsPage = lazy(() => import('@/features/teams/TeamsPage').then((m) => ({ default: m.TeamsPage })));
+const StaffPage = lazy(() => import('@/features/staff/StaffPage').then((m) => ({ default: m.StaffPage })));
+const ActivityLogsPage = lazy(() => import('@/features/activitylogs/ActivityLogsPage').then((m) => ({ default: m.ActivityLogsPage })));
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
+
+function RouteFallback() {
+  return (
+    <div className="flex h-[60vh] items-center justify-center">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
 
@@ -101,6 +112,7 @@ export default function App() {
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
         <Toaster richColors position="top-right" />
       </AuthProvider>

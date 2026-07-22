@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import compression from 'compression';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiRouter } from './routes';
@@ -10,6 +11,7 @@ import { apiRouter } from './routes';
 export const app = express();
 
 app.use(helmet());
+app.use(compression());
 app.use(cors({ origin: env.frontendUrl, credentials: true }));
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
 

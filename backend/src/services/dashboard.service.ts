@@ -62,12 +62,15 @@ export async function getDashboardCharts(user: AuthUser) {
   }
   const leadSources = Array.from(sourceCounts.entries()).map(([source, count]) => ({ source, count }));
 
-  const staffPerformance = (await getStaffPerformanceReport(user)).map((row) => ({
+  const [staffPerformanceRows, conversion] = await Promise.all([
+    getStaffPerformanceReport(user),
+    getConversionReport(user),
+  ]);
+  const staffPerformance = staffPerformanceRows.map((row) => ({
     staff: row.full_name as string,
     leadsWon: row.leads_won as number,
   }));
 
-  const conversion = await getConversionReport(user);
   const won = (conversion.find((c) => c.status === 'won')?.count as number) ?? 0;
   const total = (conversion.find((c) => c.status === 'TOTAL')?.count as number) ?? 0;
   const conversionRate = total > 0 ? Number(((won / total) * 100).toFixed(1)) : 0;
