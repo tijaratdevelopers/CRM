@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "app.vercel.crm_inky_xi.twa",
+    "sha256_cert_fingerprints": ["65:D9:E5:F9:D3:63:0A:18:C2:8B:5E:F0:A6:ED:62:CC:5C:00:7E:14:08:D0:82:5C:BD:D0:BC:5F:E5:3A:AB:FE"]
+  }
+}]

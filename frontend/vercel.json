@@ -2,6 +2,6 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "https://crm12-eta.vercel.app/api/$1" },
     { "source": "/socket.io/(.*)", "destination": "https://crm12-eta.vercel.app/socket.io/$1" },
-    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+    { "source": "/((?!assets/|\\.well-known/).*)", "destination": "/index.html" }
   ]
 }
