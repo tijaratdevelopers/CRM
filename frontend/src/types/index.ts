@@ -59,6 +59,17 @@ export interface UserProfile {
   team_id: string | null;
   is_active: boolean;
   avatar_url: string | null;
+  round_robin_position: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  direct_staff_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -67,11 +78,18 @@ export interface Team {
   id: string;
   name: string;
   team_lead_id: string | null;
+  project_id: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
   team_lead: { id: string; full_name: string; email: string } | null;
-  members: { id: string; full_name: string; email: string; is_active: boolean }[];
+  members: {
+    id: string;
+    full_name: string;
+    email: string;
+    is_active: boolean;
+    round_robin_position: number | null;
+  }[];
 }
 
 export interface LeadSource {

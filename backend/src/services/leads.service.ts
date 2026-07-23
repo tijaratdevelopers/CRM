@@ -22,6 +22,7 @@ export interface Lead {
   assigned_staff_id: string | null;
   assigned_team_lead_id: string | null;
   assigned_team_id: string | null;
+  project_id: string;
   status: LeadStatus;
   priority: LeadPriority;
   tags: string[];
@@ -39,6 +40,7 @@ export interface ListLeadsFilters {
   sourceId?: string;
   assignedStaffId?: string;
   assignedTeamLeadId?: string;
+  projectId?: string;
   search?: string;
   dateFrom?: string;
   dateTo?: string;
@@ -66,6 +68,8 @@ export interface CreateLeadInput {
   priority?: LeadPriority;
   tags?: string[];
   notes?: string;
+  /** Omit to fall back to the "Default Project" (DB column default). */
+  projectId?: string;
 }
 
 export interface UpdateLeadInput {
@@ -109,6 +113,7 @@ export async function listLeads(
   if (filters.sourceId) query = query.eq('source_id', filters.sourceId);
   if (filters.assignedStaffId) query = query.eq('assigned_staff_id', filters.assignedStaffId);
   if (filters.assignedTeamLeadId) query = query.eq('assigned_team_lead_id', filters.assignedTeamLeadId);
+  if (filters.projectId) query = query.eq('project_id', filters.projectId);
   if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
   if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
   if (filters.search) {
@@ -160,30 +165,31 @@ export async function createLead(user: AuthUser, input: CreateLeadInput): Promis
   const sourceId =
     input.sourceId ?? (await resolveSourceId('Manual Entry', 'Leads created manually in the CRM'));
 
+  const insertRow: Record<string, unknown> = {
+    name: input.name,
+    phone: input.phone ?? null,
+    whatsapp: input.whatsapp ?? null,
+    email: input.email ?? null,
+    company: input.company ?? null,
+    city: input.city ?? null,
+    country: input.country ?? null,
+    source_id: sourceId,
+    campaign_id: input.campaignId ?? null,
+    assigned_staff_id: input.assignedStaffId ?? null,
+    assigned_team_lead_id: input.assignedTeamLeadId ?? null,
+    status,
+    priority: input.priority ?? 'medium',
+    tags: input.tags ?? [],
+    notes: input.notes ?? null,
+    created_by: user.id,
+    last_modified_by: user.id,
+  };
+  // Omit project_id entirely when not provided so the DB column default
+  // (Default Project) applies — don't send an explicit `undefined`/null.
+  if (input.projectId) insertRow.project_id = input.projectId;
+
   let lead = unwrap(
-    await supabaseAdmin
-      .from('leads')
-      .insert({
-        name: input.name,
-        phone: input.phone ?? null,
-        whatsapp: input.whatsapp ?? null,
-        email: input.email ?? null,
-        company: input.company ?? null,
-        city: input.city ?? null,
-        country: input.country ?? null,
-        source_id: sourceId,
-        campaign_id: input.campaignId ?? null,
-        assigned_staff_id: input.assignedStaffId ?? null,
-        assigned_team_lead_id: input.assignedTeamLeadId ?? null,
-        status,
-        priority: input.priority ?? 'medium',
-        tags: input.tags ?? [],
-        notes: input.notes ?? null,
-        created_by: user.id,
-        last_modified_by: user.id,
-      })
-      .select()
-      .single(),
+    await supabaseAdmin.from('leads').insert(insertRow).select().single(),
   ) as Lead;
 
   if (input.assignedStaffId) {
@@ -196,7 +202,7 @@ export async function createLead(user: AuthUser, input: CreateLeadInput): Promis
     });
   } else {
     // No explicit assignee — hand the lead to the round-robin engine.
-    const assigned = await autoAssignLead(lead.id, lead.name);
+    const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
     if (assigned) {
       lead = {
         ...lead,
@@ -328,7 +334,11 @@ interface BulkUploadRow {
   country?: string;
 }
 
-export async function bulkUploadLeads(user: AuthUser, fileBuffer: Buffer): Promise<{ imported: number }> {
+export async function bulkUploadLeads(
+  user: AuthUser,
+  fileBuffer: Buffer,
+  projectId?: string,
+): Promise<{ imported: number }> {
   let records: BulkUploadRow[];
   try {
     records = parse(fileBuffer, {
@@ -372,17 +382,20 @@ export async function bulkUploadLeads(user: AuthUser, fileBuffer: Buffer): Promi
     priority: 'medium' as LeadPriority,
     created_by: user.id,
     last_modified_by: user.id,
+    // Omitted (undefined) when projectId isn't passed — the DB column
+    // default (Default Project) applies, same as single-lead creation.
+    ...(projectId ? { project_id: projectId } : {}),
   }));
 
   const inserted = unwrap(
-    await supabaseAdmin.from('leads').insert(rowsToInsert).select('id, name'),
-  ) as { id: string; name: string }[];
+    await supabaseAdmin.from('leads').insert(rowsToInsert).select('id, name, project_id'),
+  ) as { id: string; name: string; project_id: string }[];
 
   // Distribute the whole batch through the round-robin engine. Sequential on
   // purpose: the engine serializes on the state row anyway, and order is what
   // produces the T1S1, T2S1, ..., T1S2 pattern.
   for (const row of inserted) {
-    await autoAssignLead(row.id, row.name);
+    await autoAssignLead(row.id, row.name, row.project_id);
   }
 
   await logActivity({

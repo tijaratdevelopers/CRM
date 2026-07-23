@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Menu, User } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useProject } from '@/features/projects/ProjectContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -10,9 +11,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
+
+const ALL_PROJECTS = '__all__';
+
+function ProjectSwitcher() {
+  const { profile } = useAuth();
+  const { projects, selectedProjectId, setSelectedProjectId } = useProject();
+
+  if (!profile || profile.role === 'staff' || projects.length === 0) return null;
+
+  return (
+    <Select
+      value={selectedProjectId ?? ALL_PROJECTS}
+      onValueChange={(value) => setSelectedProjectId(value === ALL_PROJECTS ? null : value)}
+    >
+      <SelectTrigger className="hidden h-9 w-[180px] sm:flex">
+        <SelectValue placeholder="All projects" />
+      </SelectTrigger>
+      <SelectContent>
+        {profile.role === 'admin' && <SelectItem value={ALL_PROJECTS}>All projects</SelectItem>}
+        {projects.map((project) => (
+          <SelectItem key={project.id} value={project.id}>
+            {project.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
@@ -50,6 +86,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <GlobalSearch />
       </div>
       <div className="flex items-center gap-2">
+        <ProjectSwitcher />
         <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent">

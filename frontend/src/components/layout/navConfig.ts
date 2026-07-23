@@ -14,6 +14,7 @@ import {
   History,
   Settings,
   Loader,
+  FolderKanban,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ export interface NavItem {
 
 export const navItems: NavItem[] = [
   { label: 'Dashboard', to: '/', icon: LayoutDashboard, roles: ['admin', 'team_lead', 'staff'] },
+  { label: 'Projects', to: '/projects', icon: FolderKanban, roles: ['admin'] },
   { label: 'Leads', to: '/leads', icon: Contact, roles: ['admin', 'team_lead', 'staff'] },
   {
     label: 'In Progress Leads',

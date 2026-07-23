@@ -13,3 +13,4 @@ teamsRouter.patch('/:id', requireRole('admin'), teamsController.update);
 teamsRouter.delete('/:id', requireRole('admin'), teamsController.remove);
 teamsRouter.post('/:id/members', requireRole('admin', 'team_lead'), teamsController.addMember);
 teamsRouter.delete('/:id/members/:staffId', requireRole('admin', 'team_lead'), teamsController.removeMember);
+teamsRouter.patch('/:id/members/order', requireRole('admin', 'team_lead'), teamsController.reorderMembers);

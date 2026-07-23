@@ -1,7 +1,8 @@
 import crypto from 'crypto';
 import { env } from '../config/env';
 
-const GRAPH_API_VERSION = 'v20.0';
+// Kept in sync with metaIntegration.service.ts's GRAPH_API_VERSION.
+const GRAPH_API_VERSION = 'v21.0';
 
 /**
  * Verifies the `X-Hub-Signature-256` header Meta sends on every webhook POST.
@@ -39,6 +40,11 @@ export interface MetaLeadDetails {
   phone?: string;
   company?: string;
   city?: string;
+  /** Meta ad object ids for attribution (Features 2/3/12) — present when Meta includes them on the leadgen object. */
+  adId?: string;
+  adSetId?: string;
+  campaignId?: string;
+  formId?: string;
   raw: Record<string, unknown>;
 }
 
@@ -66,7 +72,8 @@ export async function fetchLeadDetailsFromMeta(
     return { leadgenId, raw: {} };
   }
 
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?access_token=${token}`;
+  const fields = 'field_data,ad_id,adset_id,campaign_id,form_id';
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?fields=${fields}&access_token=${token}`;
   const response = await fetch(url);
   const data: any = await response.json().catch(() => ({}));
 
@@ -84,6 +91,10 @@ export async function fetchLeadDetailsFromMeta(
     phone: pickField(fieldData, 'phone_number', 'phone'),
     company: pickField(fieldData, 'company_name', 'company'),
     city: pickField(fieldData, 'city'),
+    adId: data.ad_id ?? undefined,
+    adSetId: data.adset_id ?? undefined,
+    campaignId: data.campaign_id ?? undefined,
+    formId: data.form_id ?? undefined,
     raw: data,
   };
 }

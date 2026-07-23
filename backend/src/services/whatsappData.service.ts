@@ -178,6 +178,7 @@ export async function listConversations(user: AuthUser): Promise<ConversationSum
 interface InboundLeadRow {
   id: string;
   assigned_staff_id: string | null;
+  project_id: string;
 }
 
 /**
@@ -191,7 +192,7 @@ export async function recordInboundMessage(phone: string, body: string): Promise
   let lead = unwrap(
     await supabaseAdmin
       .from('leads')
-      .select('id, assigned_staff_id')
+      .select('id, assigned_staff_id, project_id')
       .eq('whatsapp', phone)
       .maybeSingle(),
   ) as InboundLeadRow | null;
@@ -224,11 +225,11 @@ export async function recordInboundMessage(phone: string, body: string): Promise
           created_by: null,
           last_modified_by: null,
         })
-        .select('id, assigned_staff_id')
+        .select('id, assigned_staff_id, project_id')
         .single(),
     ) as InboundLeadRow;
 
-    const assigned = await autoAssignLead(lead.id, phone);
+    const assigned = await autoAssignLead(lead.id, phone, lead.project_id);
     if (assigned) {
       lead.assigned_staff_id = assigned.staffId;
     }

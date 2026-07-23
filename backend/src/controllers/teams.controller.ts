@@ -4,22 +4,31 @@ import * as teamsService from '../services/teams.service';
 import { getDistributionState } from '../services/assignment.service';
 
 export async function list(req: Request, res: Response) {
-  const data = await teamsService.listTeams(req.user!);
+  const { projectId } = req.query;
+  const data = await teamsService.listTeams(req.user!, typeof projectId === 'string' ? projectId : undefined);
   res.json(data);
 }
 
 export async function create(req: Request, res: Response) {
-  const { name, teamLeadId } = req.body ?? {};
+  const { name, teamLeadId, projectId } = req.body ?? {};
   if (!name || typeof name !== 'string') {
     throw new HttpError(400, 'name is required');
   }
-  const data = await teamsService.createTeam(req.user!, { name, teamLeadId });
+  if (!projectId || typeof projectId !== 'string') {
+    throw new HttpError(400, 'projectId is required');
+  }
+  const data = await teamsService.createTeam(req.user!, { name, teamLeadId, projectId });
   res.status(201).json(data);
 }
 
 export async function update(req: Request, res: Response) {
-  const { name, teamLeadId, isActive } = req.body ?? {};
-  const data = await teamsService.updateTeam(req.user!, req.params.id, { name, teamLeadId, isActive });
+  const { name, teamLeadId, isActive, projectId } = req.body ?? {};
+  const data = await teamsService.updateTeam(req.user!, req.params.id, {
+    name,
+    teamLeadId,
+    isActive,
+    projectId,
+  });
   res.json(data);
 }
 
@@ -42,8 +51,22 @@ export async function removeMember(req: Request, res: Response) {
   res.status(204).send();
 }
 
-/** Admin-only peek at the persistent round-robin pointers. */
-export async function distributionState(_req: Request, res: Response) {
-  const data = await getDistributionState();
+/** Persists the drag-and-drop staff sequence (Features 8/9). */
+export async function reorderMembers(req: Request, res: Response) {
+  const { staffIds } = req.body ?? {};
+  if (!Array.isArray(staffIds) || staffIds.some((id) => typeof id !== 'string')) {
+    throw new HttpError(400, 'staffIds must be an array of staff user ids');
+  }
+  await teamsService.reorderMembers(req.user!, req.params.id, staffIds);
+  res.status(204).send();
+}
+
+/** Admin-only peek at the persistent round-robin pointers for one project. */
+export async function distributionState(req: Request, res: Response) {
+  const { projectId } = req.query;
+  if (!projectId || typeof projectId !== 'string') {
+    throw new HttpError(400, 'projectId query param is required');
+  }
+  const data = await getDistributionState(projectId);
   res.json(data);
 }

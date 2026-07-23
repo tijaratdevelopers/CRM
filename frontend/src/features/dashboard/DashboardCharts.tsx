@@ -16,6 +16,7 @@ import {
   Legend,
 } from 'recharts';
 import { apiClient } from '@/lib/apiClient';
+import { useProject } from '@/features/projects/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MonthlyLeadsPoint {
@@ -44,8 +45,10 @@ export interface DashboardChartsData {
 // light and dark chart surfaces (no pure black/white slices).
 const PIE_COLORS = ['#7c3aed', '#0ea5e9', '#10b981', '#f59e0b', '#f43f5e', '#6366f1'];
 
-async function fetchDashboardCharts(): Promise<DashboardChartsData> {
-  const { data } = await apiClient.get<DashboardChartsData>('/dashboard/charts');
+async function fetchDashboardCharts(projectId: string | null): Promise<DashboardChartsData> {
+  const { data } = await apiClient.get<DashboardChartsData>('/dashboard/charts', {
+    params: projectId ? { projectId } : undefined,
+  });
   return data;
 }
 
@@ -77,9 +80,10 @@ function LoadingState() {
 }
 
 export function DashboardCharts() {
+  const { selectedProjectId } = useProject();
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['dashboard-charts'],
-    queryFn: fetchDashboardCharts,
+    queryKey: ['dashboard-charts', selectedProjectId],
+    queryFn: () => fetchDashboardCharts(selectedProjectId),
   });
 
   return (

@@ -9,13 +9,21 @@ import { HttpError } from '../middleware/auth';
 
 const META_LEAD_SOURCE_NAME = 'Meta Lead Ads';
 
+function requireProjectId(value: unknown): string {
+  if (!value || typeof value !== 'string') {
+    throw new HttpError(400, 'projectId is required');
+  }
+  return value;
+}
+
 // ---------------------------------------------------------------------------
 // OAuth connection flow
 // ---------------------------------------------------------------------------
 
-/** GET /login — admin-only. Returns the Facebook OAuth dialog URL to redirect to. */
+/** GET /login?projectId= — admin-only. Returns the Facebook OAuth dialog URL to redirect to. */
 export function getLoginUrl(req: Request, res: Response) {
-  res.json({ url: metaIntegration.buildLoginUrl(req.user!.id) });
+  const projectId = requireProjectId(req.query.projectId);
+  res.json({ url: metaIntegration.buildLoginUrl(req.user!.id, projectId) });
 }
 
 function redirectToSettings(res: Response, params: Record<string, string>) {
@@ -37,45 +45,49 @@ export async function oauthCallback(req: Request, res: Response) {
   }
 
   const code = typeof req.query.code === 'string' ? req.query.code : undefined;
-  const userId = metaIntegration.verifyOAuthState(
+  const state = metaIntegration.verifyOAuthState(
     typeof req.query.state === 'string' ? req.query.state : undefined,
   );
 
-  if (!code || !userId) {
+  if (!code || !state) {
     redirectToSettings(res, { meta_error: 'invalid_state' });
     return;
   }
 
   try {
-    await metaIntegration.handleOAuthCallback(code, userId);
-    redirectToSettings(res, { meta: 'connected' });
+    await metaIntegration.handleOAuthCallback(code, state.userId, state.projectId);
+    redirectToSettings(res, { meta: 'connected', projectId: state.projectId });
   } catch (err) {
     console.error('Meta OAuth callback failed:', err);
-    redirectToSettings(res, { meta_error: 'exchange_failed' });
+    redirectToSettings(res, { meta_error: 'exchange_failed', projectId: state.projectId });
   }
 }
 
-/** GET /businesses — admin-only. */
-export async function listBusinesses(_req: Request, res: Response) {
-  res.json(await metaIntegration.listBusinesses());
+/** GET /businesses?projectId= — admin-only. */
+export async function listBusinesses(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.listBusinesses(projectId));
 }
 
-/** GET /pages — admin-only. */
-export async function listPages(_req: Request, res: Response) {
-  res.json(await metaIntegration.listPages());
+/** GET /pages?projectId= — admin-only. */
+export async function listPages(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.listPages(projectId));
 }
 
-/** GET /forms?pageId= — admin-only. */
+/** GET /forms?pageId=&projectId= — admin-only. */
 export async function listForms(req: Request, res: Response) {
   const pageId = typeof req.query.pageId === 'string' ? req.query.pageId : '';
   if (!pageId) throw new HttpError(400, 'pageId is required');
-  res.json(await metaIntegration.listForms(pageId));
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.listForms(pageId, projectId));
 }
 
 /** POST /connect — admin-only. Saves the selection and wires up the webhook. */
 export async function connect(req: Request, res: Response) {
   const body = req.body ?? {};
-  const result = await metaIntegration.connect({
+  const projectId = requireProjectId(body.projectId);
+  const result = await metaIntegration.connect(projectId, {
     businessId: body.businessId || undefined,
     businessName: body.businessName || undefined,
     pageId: body.pageId,
@@ -86,14 +98,64 @@ export async function connect(req: Request, res: Response) {
 }
 
 /** POST /disconnect — admin-only. */
-export async function disconnect(_req: Request, res: Response) {
-  await metaIntegration.disconnect();
+export async function disconnect(req: Request, res: Response) {
+  const projectId = requireProjectId((req.body ?? {}).projectId);
+  await metaIntegration.disconnect(projectId);
   res.json({ ok: true });
 }
 
-/** GET /status — admin-only. Connection state for the Settings > Integrations page. */
-export async function getIntegrationStatus(_req: Request, res: Response) {
-  res.json(await metaIntegration.getStatus());
+/** GET /status?projectId= — admin-only. Connection state for the Settings > Integrations page. */
+export async function getIntegrationStatus(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.getStatus(projectId));
+}
+
+// ---------------------------------------------------------------------------
+// Ad hierarchy (import & track)
+// ---------------------------------------------------------------------------
+
+/** GET /ad-accounts?projectId= — admin-only. Live list from the Graph API. */
+export async function listAdAccounts(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.listAdAccounts(projectId));
+}
+
+/** POST /ad-accounts/save — admin-only. Persists the admin's picked ad accounts. */
+export async function saveAdAccounts(req: Request, res: Response) {
+  const body = req.body ?? {};
+  const projectId = requireProjectId(body.projectId);
+  const accounts = Array.isArray(body.accounts) ? body.accounts : [];
+  res.json(await metaIntegration.saveAdAccounts(projectId, accounts));
+}
+
+/** POST /ad-accounts/:id/sync-campaigns — admin-only. */
+export async function syncCampaigns(req: Request, res: Response) {
+  const count = await metaIntegration.syncCampaigns(req.params.id);
+  res.json({ synced: count });
+}
+
+/** POST /campaigns/:id/sync-ad-sets — admin-only. */
+export async function syncAdSets(req: Request, res: Response) {
+  const count = await metaIntegration.syncAdSets(req.params.id);
+  res.json({ synced: count });
+}
+
+/** POST /ad-sets/:id/sync-ads — admin-only. */
+export async function syncAds(req: Request, res: Response) {
+  const count = await metaIntegration.syncAds(req.params.id);
+  res.json({ synced: count });
+}
+
+/** POST /ad-accounts/:id/sync-pixels — admin-only. */
+export async function syncPixels(req: Request, res: Response) {
+  const count = await metaIntegration.syncPixels(req.params.id);
+  res.json({ synced: count });
+}
+
+/** GET /ad-hierarchy?projectId= — admin-only. Read-only tree for the Ad Accounts browser. */
+export async function getAdHierarchy(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  res.json(await metaIntegration.getAdHierarchy(projectId));
 }
 
 // ---------------------------------------------------------------------------
@@ -138,15 +200,16 @@ async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<
 }
 
 async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: string): Promise<void> {
-  // Only accept events for the connected page/forms (when a connection exists).
-  if (!(await metaIntegration.shouldProcessLeadgenEvent(pageId, formId))) return;
+  // Resolves which project this event belongs to (by form, then page) — null
+  // means it belongs to no configured project, so it's ignored entirely.
+  const target = await metaIntegration.resolveLeadgenEventTarget(pageId, formId);
+  if (!target || !target.pageAccessToken) return;
 
   // Meta can redeliver the same event on retry — skip if we already recorded this leadgen_id.
   const existing = await supabaseAdmin.from('leads').select('id').ilike('notes', `%leadgen_id: ${leadgenId}%`).maybeSingle();
   if (existing.data) return;
 
-  const accessToken = await metaIntegration.getLeadFetchToken();
-  const details = await fetchLeadDetailsFromMeta(leadgenId, accessToken);
+  const details = await fetchLeadDetailsFromMeta(leadgenId, target.pageAccessToken);
 
   const source = await supabaseAdmin.from('lead_sources').select('id').eq('name', META_LEAD_SOURCE_NAME).maybeSingle();
 
@@ -164,6 +227,12 @@ async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: 
       notes: buildLeadNotes(details),
       created_by: null,
       last_modified_by: null,
+      project_id: target.projectId,
+      meta_page_id: target.pageRowId,
+      meta_form_id: target.formRowId,
+      meta_campaign_ref: details.campaignId ?? null,
+      meta_ad_set_ref: details.adSetId ?? null,
+      meta_ad_ref: details.adId ?? null,
     })
     .select()
     .single();
@@ -173,11 +242,11 @@ async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: 
     return;
   }
 
-  await metaIntegration.touchLastSynced();
+  await metaIntegration.touchLastSynced(target.projectId);
 
   // Round-robin auto-assignment (notifies the chosen staff member itself);
   // only fall back to notifying admins when nobody was available.
-  const assigned = await autoAssignLead(lead.id, lead.name);
+  const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
   if (!assigned) {
     await notifyAdminsOfNewLead(lead.id, lead.name);
   }

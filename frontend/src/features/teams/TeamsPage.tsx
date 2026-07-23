@@ -1,9 +1,25 @@
 import * as React from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Shuffle } from 'lucide-react';
+import { Shuffle, GripVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useProject } from '@/features/projects/ProjectContext';
 import type { Team, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -33,8 +49,10 @@ interface DistributionState {
   updatedAt: string | null;
 }
 
-async function fetchTeams(): Promise<Team[]> {
-  const { data } = await apiClient.get<Team[]>('/teams');
+async function fetchTeams(projectId: string | null): Promise<Team[]> {
+  const { data } = await apiClient.get<Team[]>('/teams', {
+    params: projectId ? { projectId } : undefined,
+  });
   return data;
 }
 
@@ -43,8 +61,10 @@ async function fetchUsers(): Promise<UserProfile[]> {
   return data;
 }
 
-async function fetchDistributionState(): Promise<DistributionState> {
-  const { data } = await apiClient.get<DistributionState>('/teams/distribution-state');
+async function fetchDistributionState(projectId: string): Promise<DistributionState> {
+  const { data } = await apiClient.get<DistributionState>('/teams/distribution-state', {
+    params: { projectId },
+  });
   return data;
 }
 
@@ -54,11 +74,13 @@ function TeamFormDialog({
   open,
   team,
   teamLeads,
+  projectId,
   onOpenChange,
 }: {
   open: boolean;
   team: Team | null;
   teamLeads: UserProfile[];
+  projectId: string | null;
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
@@ -74,7 +96,11 @@ function TeamFormDialog({
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const payload = { name, teamLeadId: teamLeadId === NONE ? null : teamLeadId };
+      const payload = {
+        name,
+        teamLeadId: teamLeadId === NONE ? null : teamLeadId,
+        projectId: team?.project_id ?? projectId ?? undefined,
+      };
       if (team) {
         await apiClient.patch(`/teams/${team.id}`, payload);
       } else {
@@ -129,12 +155,81 @@ function TeamFormDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button disabled={!name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+          <Button
+            disabled={!name.trim() || (!team && !projectId) || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
             {mutation.isPending ? 'Saving…' : team ? 'Save changes' : 'Create team'}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+type Member = Team['members'][number];
+
+function SortableMemberRow({
+  member,
+  onRemove,
+  onMove,
+  isFirst,
+  isLast,
+  disabled,
+}: {
+  member: Member;
+  onRemove: () => void;
+  onMove: (direction: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
+  disabled: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: member.id,
+  });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center justify-between rounded-md border bg-card px-3 py-2"
+    >
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+          aria-label="Drag to reorder"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+        <div>
+          <p className="text-sm font-medium text-foreground">{member.full_name}</p>
+          <p className="text-xs text-muted-foreground">{member.email}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Badge variant={member.is_active ? 'success' : 'secondary'}>
+          {member.is_active ? 'Active' : 'Inactive'}
+        </Badge>
+        <Button size="icon" variant="ghost" disabled={isFirst || disabled} onClick={() => onMove(-1)}>
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+        <Button size="icon" variant="ghost" disabled={isLast || disabled} onClick={() => onMove(1)}>
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+        <Button size="sm" variant="outline" disabled={disabled} onClick={onRemove}>
+          Remove
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -149,6 +244,13 @@ function ManageMembersDialog({
 }) {
   const queryClient = useQueryClient();
   const [staffToAdd, setStaffToAdd] = React.useState<string>('');
+  const [order, setOrder] = React.useState<Member[]>([]);
+
+  React.useEffect(() => {
+    setOrder(team?.members ?? []);
+  }, [team]);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const availableStaff = React.useMemo(() => {
     if (!team) return [];
@@ -181,42 +283,81 @@ function ManageMembersDialog({
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const reorderMutation = useMutation({
+    mutationFn: async (staffIds: string[]) => {
+      await apiClient.patch(`/teams/${team!.id}/members/order`, { staffIds });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['teams'] });
+      toast.success('Round-robin order saved');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const dirty = React.useMemo(() => {
+    if (!team) return false;
+    return order.map((m) => m.id).join(',') !== team.members.map((m) => m.id).join(',');
+  }, [order, team]);
+
+  function moveTo(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= order.length) return;
+    setOrder((prev) => arrayMove(prev, index, target));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setOrder((prev) => {
+      const oldIndex = prev.findIndex((m) => m.id === active.id);
+      const newIndex = prev.findIndex((m) => m.id === over.id);
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }
+
   return (
     <Dialog open={!!team} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{team?.name} — members</DialogTitle>
           <DialogDescription>
-            Active members receive leads in round-robin order. Inactive staff are skipped automatically.
+            Members receive leads in this exact round-robin order — drag, use the arrows, or drop
+            to reorder, then save. Inactive staff are skipped automatically.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
-          {team?.members.length === 0 && (
-            <p className="text-sm text-muted-foreground">No members yet.</p>
-          )}
-          {team?.members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between rounded-md border px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-foreground">{m.full_name}</p>
-                <p className="text-xs text-muted-foreground">{m.email}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={m.is_active ? 'success' : 'secondary'}>
-                  {m.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-                <Button
-                  size="sm"
-                  variant="outline"
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={order.map((m) => m.id)} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {order.length === 0 && (
+                <p className="text-sm text-muted-foreground">No members yet.</p>
+              )}
+              {order.map((m, index) => (
+                <SortableMemberRow
+                  key={m.id}
+                  member={m}
+                  isFirst={index === 0}
+                  isLast={index === order.length - 1}
                   disabled={removeMutation.isPending}
-                  onClick={() => removeMutation.mutate(m.id)}
-                >
-                  Remove
-                </Button>
-              </div>
+                  onMove={(direction) => moveTo(index, direction)}
+                  onRemove={() => removeMutation.mutate(m.id)}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+        </DndContext>
+
+        {order.length > 0 && (
+          <div className="flex justify-end">
+            <Button
+              size="sm"
+              disabled={!dirty || reorderMutation.isPending}
+              onClick={() => reorderMutation.mutate(order.map((m) => m.id))}
+            >
+              {reorderMutation.isPending ? 'Saving…' : 'Save order'}
+            </Button>
+          </div>
+        )}
 
         <Separator />
 
@@ -250,6 +391,7 @@ function ManageMembersDialog({
 
 export function TeamsPage() {
   const { profile } = useAuth();
+  const { projects, selectedProjectId } = useProject();
   const isAdmin = profile?.role === 'admin';
   const queryClient = useQueryClient();
 
@@ -257,12 +399,15 @@ export function TeamsPage() {
   const [editingTeam, setEditingTeam] = React.useState<Team | null>(null);
   const [membersTeam, setMembersTeam] = React.useState<Team | null>(null);
 
-  const teamsQuery = useQuery({ queryKey: ['teams'], queryFn: fetchTeams });
+  const teamsQuery = useQuery({
+    queryKey: ['teams', selectedProjectId],
+    queryFn: () => fetchTeams(selectedProjectId),
+  });
   const usersQuery = useQuery({ queryKey: ['users'], queryFn: fetchUsers, enabled: isAdmin });
   const stateQuery = useQuery({
-    queryKey: ['distribution-state'],
-    queryFn: fetchDistributionState,
-    enabled: isAdmin,
+    queryKey: ['distribution-state', selectedProjectId],
+    queryFn: () => fetchDistributionState(selectedProjectId!),
+    enabled: isAdmin && !!selectedProjectId,
     refetchInterval: 30_000,
   });
 
@@ -270,7 +415,7 @@ export function TeamsPage() {
   const users = usersQuery.data ?? [];
   const teamLeads = users.filter((u) => u.role === 'team_lead');
 
-  // Keep the members dialog in sync after add/remove refetches.
+  // Keep the members dialog in sync after add/remove/reorder refetches.
   React.useEffect(() => {
     if (membersTeam) {
       const fresh = teams.find((t) => t.id === membersTeam.id);
@@ -309,10 +454,25 @@ export function TeamsPage() {
             New leads are distributed automatically — teams first, then staff, in strict round-robin order.
           </p>
         </div>
-        {isAdmin && <Button onClick={() => { setEditingTeam(null); setFormOpen(true); }}>Create team</Button>}
+        {isAdmin && (
+          <Button
+            disabled={projects.length === 0}
+            title={projects.length === 0 ? 'Create a project first' : undefined}
+            onClick={() => { setEditingTeam(null); setFormOpen(true); }}
+          >
+            Create team
+          </Button>
+        )}
       </div>
 
-      {isAdmin && stateQuery.data && (
+      {isAdmin && !selectedProjectId && (
+        <p className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          Showing teams across all projects. Select a project from the switcher above to create a
+          team or view its distribution state.
+        </p>
+      )}
+
+      {isAdmin && selectedProjectId && stateQuery.data && (
         <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
           <Shuffle className="h-4 w-4" />
           <span>
@@ -386,7 +546,13 @@ export function TeamsPage() {
         ))}
       </div>
 
-      <TeamFormDialog open={formOpen} team={editingTeam} teamLeads={teamLeads} onOpenChange={setFormOpen} />
+      <TeamFormDialog
+        open={formOpen}
+        team={editingTeam}
+        teamLeads={teamLeads}
+        projectId={selectedProjectId}
+        onOpenChange={setFormOpen}
+      />
       <ManageMembersDialog team={membersTeam} allStaff={users} onOpenChange={() => setMembersTeam(null)} />
     </div>
   );

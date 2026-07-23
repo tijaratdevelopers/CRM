@@ -13,11 +13,13 @@ const REPORT_TYPES = [
   'staff-performance',
   'team-performance',
   'conversion',
+  'project-performance',
+  'campaign-performance',
 ] as const;
 
 type ReportType = (typeof REPORT_TYPES)[number];
 
-const RESTRICTED_TYPES: ReportType[] = ['staff-performance', 'team-performance'];
+const RESTRICTED_TYPES: ReportType[] = ['staff-performance', 'team-performance', 'project-performance'];
 
 function isReportType(value: string): value is ReportType {
   return (REPORT_TYPES as readonly string[]).includes(value);
@@ -25,6 +27,7 @@ function isReportType(value: string): value is ReportType {
 
 async function resolveReportRows(type: ReportType, req: Request): Promise<Record<string, unknown>[]> {
   const user = req.user!;
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
 
   if (RESTRICTED_TYPES.includes(type) && user.role !== 'admin' && user.role !== 'team_lead') {
     throw new HttpError(403, 'Insufficient permissions for this action');
@@ -32,19 +35,23 @@ async function resolveReportRows(type: ReportType, req: Request): Promise<Record
 
   switch (type) {
     case 'leads':
-      return reportsService.getLeadsReport(user);
+      return reportsService.getLeadsReport(user, projectId);
     case 'calls':
-      return reportsService.getCallsReport(user);
+      return reportsService.getCallsReport(user, projectId);
     case 'meetings':
-      return reportsService.getMeetingsReport(user);
+      return reportsService.getMeetingsReport(user, projectId);
     case 'follow-ups':
-      return reportsService.getFollowUpsReport(user);
+      return reportsService.getFollowUpsReport(user, projectId);
     case 'staff-performance':
-      return reportsService.getStaffPerformanceReport(user);
+      return reportsService.getStaffPerformanceReport(user, projectId);
     case 'team-performance':
-      return reportsService.getTeamPerformanceReport(user);
+      return reportsService.getTeamPerformanceReport(user, projectId);
     case 'conversion':
-      return reportsService.getConversionReport(user);
+      return reportsService.getConversionReport(user, projectId);
+    case 'project-performance':
+      return reportsService.getProjectPerformanceReport(user);
+    case 'campaign-performance':
+      return reportsService.getCampaignPerformanceReport(user, projectId);
   }
 }
 

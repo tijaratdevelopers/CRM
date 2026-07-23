@@ -4,26 +4,32 @@ import { applyLeadScope } from '../utils/scope';
 import { AuthUser } from '../types';
 import { getStaffPerformanceReport, getConversionReport } from './reports.service';
 
-export async function getDashboardSummary(user: AuthUser) {
+export async function getDashboardSummary(user: AuthUser, projectId?: string) {
   if (user.role === 'admin') {
-    const { data, error } = await supabaseAdmin.rpc('get_admin_dashboard_stats');
+    const { data, error } = await supabaseAdmin.rpc('get_admin_dashboard_stats', {
+      p_project_id: projectId ?? null,
+    });
     if (error) throw error;
     return data?.[0] ?? null;
   }
   if (user.role === 'team_lead') {
     const { data, error } = await supabaseAdmin.rpc('get_team_lead_dashboard_stats', {
       p_team_lead_id: user.id,
+      p_project_id: projectId ?? null,
     });
     if (error) throw error;
     return data?.[0] ?? null;
   }
-  const { data, error } = await supabaseAdmin.rpc('get_staff_dashboard_stats', { p_staff_id: user.id });
+  const { data, error } = await supabaseAdmin.rpc('get_staff_dashboard_stats', {
+    p_staff_id: user.id,
+    p_project_id: projectId ?? null,
+  });
   if (error) throw error;
   return data?.[0] ?? null;
 }
 
 /** Admin/Team Lead only — feeds the dashboard charts. */
-export async function getDashboardCharts(user: AuthUser) {
+export async function getDashboardCharts(user: AuthUser, projectId?: string) {
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   sixMonthsAgo.setDate(1);
@@ -33,6 +39,7 @@ export async function getDashboardCharts(user: AuthUser) {
     .select('created_at, status, source_id')
     .gte('created_at', sixMonthsAgo.toISOString());
   leadsQuery = applyLeadScope(leadsQuery, user);
+  if (projectId) leadsQuery = leadsQuery.eq('project_id', projectId);
 
   const leads = unwrap(await leadsQuery) as { created_at: string; status: string; source_id: string | null }[];
 
@@ -63,8 +70,8 @@ export async function getDashboardCharts(user: AuthUser) {
   const leadSources = Array.from(sourceCounts.entries()).map(([source, count]) => ({ source, count }));
 
   const [staffPerformanceRows, conversion] = await Promise.all([
-    getStaffPerformanceReport(user),
-    getConversionReport(user),
+    getStaffPerformanceReport(user, projectId),
+    getConversionReport(user, projectId),
   ]);
   const staffPerformance = staffPerformanceRows.map((row) => ({
     staff: row.full_name as string,

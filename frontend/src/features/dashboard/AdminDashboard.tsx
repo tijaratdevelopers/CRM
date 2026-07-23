@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { LayoutGrid, Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useProject } from '@/features/projects/ProjectContext';
 import { StatCard, type StatAccent } from '@/features/dashboard/StatCard';
 import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
@@ -23,16 +24,19 @@ interface AdminSummary {
   in_progress_leads: number;
 }
 
-async function fetchAdminSummary(): Promise<AdminSummary> {
-  const { data } = await apiClient.get<AdminSummary>('/dashboard/summary');
+async function fetchAdminSummary(projectId: string | null): Promise<AdminSummary> {
+  const { data } = await apiClient.get<AdminSummary>('/dashboard/summary', {
+    params: projectId ? { projectId } : undefined,
+  });
   return data;
 }
 
 export function AdminDashboard() {
   const { profile } = useAuth();
+  const { selectedProjectId } = useProject();
   const { data, isLoading } = useQuery({
-    queryKey: ['dashboard-summary'],
-    queryFn: fetchAdminSummary,
+    queryKey: ['dashboard-summary', selectedProjectId],
+    queryFn: () => fetchAdminSummary(selectedProjectId),
   });
 
   const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent; to: string }[] = [

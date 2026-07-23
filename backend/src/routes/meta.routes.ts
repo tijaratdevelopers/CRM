@@ -19,3 +19,12 @@ metaRouter.get('/pages', ...adminOnly, metaController.listPages);
 metaRouter.get('/forms', ...adminOnly, metaController.listForms);
 metaRouter.post('/connect', ...adminOnly, metaController.connect);
 metaRouter.post('/disconnect', ...adminOnly, metaController.disconnect);
+
+// Ad hierarchy (import & track) — Features 2/3.
+metaRouter.get('/ad-accounts', ...adminOnly, metaController.listAdAccounts);
+metaRouter.post('/ad-accounts/save', ...adminOnly, metaController.saveAdAccounts);
+metaRouter.post('/ad-accounts/:id/sync-campaigns', ...adminOnly, metaController.syncCampaigns);
+metaRouter.post('/campaigns/:id/sync-ad-sets', ...adminOnly, metaController.syncAdSets);
+metaRouter.post('/ad-sets/:id/sync-ads', ...adminOnly, metaController.syncAds);
+metaRouter.post('/ad-accounts/:id/sync-pixels', ...adminOnly, metaController.syncPixels);
+metaRouter.get('/ad-hierarchy', ...adminOnly, metaController.getAdHierarchy);

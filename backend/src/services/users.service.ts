@@ -6,7 +6,7 @@ import { logActivity } from '../utils/activityLog';
 import { AuthUser, Role } from '../types';
 
 const PROFILE_COLUMNS =
-  'id, email, full_name, phone, role, team_lead_id, is_active, avatar_url, created_at, updated_at';
+  'id, email, full_name, phone, role, team_lead_id, team_id, is_active, avatar_url, round_robin_position, created_at, updated_at';
 
 interface UserProfile {
   id: string;
@@ -15,8 +15,10 @@ interface UserProfile {
   phone: string | null;
   role: Role;
   team_lead_id: string | null;
+  team_id: string | null;
   is_active: boolean;
   avatar_url: string | null;
+  round_robin_position: number | null;
   created_at: string;
   updated_at: string;
 }

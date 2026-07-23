@@ -16,6 +16,7 @@ import { Pencil, Trash2 } from 'lucide-react';
 
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useProject } from '@/features/projects/ProjectContext';
 import type {
   Campaign,
   Lead,
@@ -364,6 +365,7 @@ export function LeadsListPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
+  const { selectedProjectId } = useProject();
 
   const canManage = profile?.role === 'admin' || profile?.role === 'team_lead';
   const isAdmin = profile?.role === 'admin';
@@ -398,7 +400,7 @@ export function LeadsListPage() {
   const leadsQuery = useQuery({
     queryKey: [
       'leads',
-      { page, status, priority, sourceId, assignedStaffId, search: debouncedSearch },
+      { page, status, priority, sourceId, assignedStaffId, search: debouncedSearch, projectId: selectedProjectId },
     ],
     queryFn: async () => {
       const { data } = await apiClient.get<PaginatedResponse<Lead>>('/leads', {
@@ -410,6 +412,7 @@ export function LeadsListPage() {
           sourceId: sourceId !== 'all' ? sourceId : undefined,
           assignedStaffId: assignedStaffId !== 'all' ? assignedStaffId : undefined,
           search: debouncedSearch.trim() || undefined,
+          projectId: selectedProjectId ?? undefined,
         },
       });
       return data;
@@ -501,6 +504,7 @@ export function LeadsListPage() {
             : undefined,
         priority: values.priority,
         notes: values.notes || undefined,
+        projectId: selectedProjectId ?? undefined,
       };
       const { data } = await apiClient.post<Lead>('/leads', payload);
       return data;
@@ -518,6 +522,7 @@ export function LeadsListPage() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('file', file);
+      if (selectedProjectId) formData.append('projectId', selectedProjectId);
       const { data } = await apiClient.post<{ imported: number }>('/leads/bulk-upload', formData);
       return data;
     },

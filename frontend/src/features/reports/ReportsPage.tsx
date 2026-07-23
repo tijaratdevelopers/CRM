@@ -4,6 +4,7 @@ import { Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useProject } from '@/features/projects/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -29,7 +30,9 @@ type ReportType =
   | 'follow-ups'
   | 'staff-performance'
   | 'team-performance'
-  | 'conversion';
+  | 'conversion'
+  | 'project-performance'
+  | 'campaign-performance';
 
 type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
@@ -40,6 +43,8 @@ const REPORT_OPTIONS: { value: ReportType; label: string; adminOnly?: boolean }[
   { value: 'follow-ups', label: 'Follow-ups' },
   { value: 'staff-performance', label: 'Staff Performance', adminOnly: true },
   { value: 'team-performance', label: 'Team Performance', adminOnly: true },
+  { value: 'project-performance', label: 'Project Performance', adminOnly: true },
+  { value: 'campaign-performance', label: 'Campaign Performance' },
   { value: 'conversion', label: 'Conversion' },
 ];
 
@@ -64,13 +69,16 @@ function formatCellValue(value: unknown): string {
   return String(value);
 }
 
-async function fetchReportPreview(type: ReportType): Promise<Record<string, unknown>[]> {
-  const { data } = await apiClient.get<Record<string, unknown>[]>(`/reports/${type}`);
+async function fetchReportPreview(type: ReportType, projectId: string | null): Promise<Record<string, unknown>[]> {
+  const { data } = await apiClient.get<Record<string, unknown>[]>(`/reports/${type}`, {
+    params: projectId ? { projectId } : undefined,
+  });
   return data;
 }
 
 export function ReportsPage() {
   const { profile } = useAuth();
+  const { selectedProjectId } = useProject();
   const [reportType, setReportType] = React.useState<ReportType | ''>('');
   const [exportingFormat, setExportingFormat] = React.useState<ExportFormat | null>(null);
 
@@ -80,8 +88,8 @@ export function ReportsPage() {
   );
 
   const previewQuery = useQuery({
-    queryKey: ['report-preview', reportType],
-    queryFn: () => fetchReportPreview(reportType as ReportType),
+    queryKey: ['report-preview', reportType, selectedProjectId],
+    queryFn: () => fetchReportPreview(reportType as ReportType, selectedProjectId),
     enabled: !!reportType,
   });
 
@@ -93,7 +101,7 @@ export function ReportsPage() {
     setExportingFormat(format);
     try {
       const response = await apiClient.get(`/reports/${reportType}/export`, {
-        params: { format },
+        params: { format, projectId: selectedProjectId ?? undefined },
         responseType: 'blob',
       });
       const blob = new Blob([response.data]);

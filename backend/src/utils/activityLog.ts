@@ -1,7 +1,7 @@
 import { supabaseAdmin } from '../config/supabaseAdmin';
 
 interface LogActivityInput {
-  actorId: string;
+  actorId: string | null;
   entityType: string;
   entityId: string;
   action: string;

@@ -9,3 +9,6 @@ build/
 .vercel/
 .vercel
 .env*
+
+.vercel
+.env*

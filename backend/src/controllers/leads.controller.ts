@@ -24,6 +24,7 @@ export async function list(req: Request, res: Response) {
     sourceId: req.query.sourceId as string | undefined,
     assignedStaffId: req.query.assignedStaffId as string | undefined,
     assignedTeamLeadId: req.query.assignedTeamLeadId as string | undefined,
+    projectId: req.query.projectId as string | undefined,
     search: req.query.search as string | undefined,
     dateFrom: req.query.dateFrom as string | undefined,
     dateTo: req.query.dateTo as string | undefined,
@@ -67,6 +68,7 @@ export async function bulkUpload(req: Request, res: Response) {
   if (!file) {
     throw new HttpError(400, 'CSV file is required (multipart field "file")');
   }
-  const result = await leadsService.bulkUploadLeads(req.user!, file.buffer);
+  const projectId = typeof req.body?.projectId === 'string' ? req.body.projectId : undefined;
+  const result = await leadsService.bulkUploadLeads(req.user!, file.buffer, projectId);
   res.status(201).json(result);
 }

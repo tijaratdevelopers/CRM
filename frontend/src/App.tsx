@@ -5,10 +5,12 @@ import { Toaster } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/features/auth/AuthContext';
+import { ProjectProvider } from '@/features/projects/ProjectContext';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { RoleGuard } from '@/components/layout/RoleGuard';
 
+const ProjectsPage = lazy(() => import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const LeadsListPage = lazy(() => import('@/features/leads/LeadsListPage').then((m) => ({ default: m.LeadsListPage })));
 const InProgressLeadsPage = lazy(() => import('@/features/leads/InProgressLeadsPage').then((m) => ({ default: m.InProgressLeadsPage })));
@@ -38,6 +40,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <ProjectProvider>
         <BrowserRouter>
           <Suspense fallback={<RouteFallback />}>
           <Routes>
@@ -45,6 +48,14 @@ export default function App() {
 
             <Route element={<ProtectedRoute />}>
               <Route index element={<DashboardPage />} />
+              <Route
+                path="projects"
+                element={
+                  <RoleGuard roles={['admin']}>
+                    <ProjectsPage />
+                  </RoleGuard>
+                }
+              />
               <Route path="leads" element={<LeadsListPage />} />
               <Route path="leads/in-progress" element={<InProgressLeadsPage />} />
               <Route path="leads/:id" element={<LeadDetailPage />} />
@@ -117,6 +128,7 @@ export default function App() {
           </Suspense>
         </BrowserRouter>
         <Toaster richColors position="top-right" />
+        </ProjectProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
