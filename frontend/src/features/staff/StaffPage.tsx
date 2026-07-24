@@ -1,10 +1,16 @@
 import * as React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import type { UserProfile } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -14,12 +20,193 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+
+const addStaffSchema = z.object({
+  fullName: z.string().min(1, 'Full name is required'),
+  email: z.string().min(1, 'Email is required').email('Enter a valid email'),
+  phone: z.string().optional(),
+  teamLeadId: z.string().optional(),
+});
+
+type AddStaffValues = z.infer<typeof addStaffSchema>;
+
+interface CreatedStaffResult extends UserProfile {
+  tempPassword: string;
+}
+
+function AddStaffDialog({
+  open,
+  onOpenChange,
+  isAdmin,
+  teamLeads,
+  onCreated,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  isAdmin: boolean;
+  teamLeads: UserProfile[];
+  onCreated: (result: CreatedStaffResult) => void;
+}) {
+  const queryClient = useQueryClient();
+  const schema = isAdmin
+    ? addStaffSchema.refine((data) => !!data.teamLeadId, {
+        message: 'Team lead is required',
+        path: ['teamLeadId'],
+      })
+    : addStaffSchema;
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<AddStaffValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { fullName: '', email: '', phone: '', teamLeadId: undefined },
+  });
+
+  React.useEffect(() => {
+    if (open) reset({ fullName: '', email: '', phone: '', teamLeadId: undefined });
+  }, [open, reset]);
+
+  const createMutation = useMutation({
+    mutationFn: async (values: AddStaffValues) => {
+      const { data } = await apiClient.post<CreatedStaffResult>('/users', {
+        email: values.email,
+        fullName: values.fullName,
+        phone: values.phone || undefined,
+        role: 'staff',
+        teamLeadId: isAdmin ? values.teamLeadId : undefined,
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['staff'] });
+      onOpenChange(false);
+      onCreated(data);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Add Staff</DialogTitle>
+          <DialogDescription>
+            An invite email with login details will be sent to this address.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit((values) => createMutation.mutate(values))} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-fullName">Full name</Label>
+            <Input id="staff-fullName" {...register('fullName')} />
+            {errors.fullName && <p className="text-xs text-destructive">{errors.fullName.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-email">Email</Label>
+            <Input id="staff-email" type="email" {...register('email')} />
+            {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="staff-phone">Phone</Label>
+            <Input id="staff-phone" {...register('phone')} />
+          </div>
+          {isAdmin && (
+            <div className="space-y-1.5">
+              <Label htmlFor="staff-teamLeadId">Team lead</Label>
+              <Controller
+                control={control}
+                name="teamLeadId"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger id="staff-teamLeadId">
+                      <SelectValue placeholder="Select team lead" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {teamLeads.map((tl) => (
+                        <SelectItem key={tl.id} value={tl.id}>
+                          {tl.full_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.teamLeadId && (
+                <p className="text-xs text-destructive">{errors.teamLeadId.message}</p>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting || createMutation.isPending}>
+              {createMutation.isPending ? 'Sending invite…' : 'Add staff'}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InviteSentDialog({
+  result,
+  onOpenChange,
+}: {
+  result: CreatedStaffResult | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const copyPassword = async () => {
+    if (!result) return;
+    await navigator.clipboard.writeText(result.tempPassword);
+    toast.success('Password copied to clipboard');
+  };
+
+  return (
+    <Dialog open={!!result} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Invite sent</DialogTitle>
+          <DialogDescription>
+            An email with login details was sent to {result?.email}. You can also share this
+            temporary password directly — it won't be shown again.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex items-center gap-2 rounded-md border bg-muted/50 px-3 py-2">
+          <code className="flex-1 font-mono text-sm">{result?.tempPassword}</code>
+          <Button type="button" size="sm" variant="outline" onClick={copyPassword}>
+            Copy password
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 interface StaffPerformance {
   my_leads: number;
@@ -100,6 +287,8 @@ export function StaffPage() {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
   const [selectedStaff, setSelectedStaff] = React.useState<UserProfile | null>(null);
+  const [addStaffOpen, setAddStaffOpen] = React.useState(false);
+  const [createdStaff, setCreatedStaff] = React.useState<CreatedStaffResult | null>(null);
 
   const staffQuery = useQuery({
     queryKey: ['staff'],
@@ -123,11 +312,14 @@ export function StaffPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground">{isAdmin ? 'All Staff' : 'My Staff'}</h1>
-        <p className="text-sm text-muted-foreground">
-          {isAdmin ? 'Every staff member across all teams.' : 'Staff members reporting to you.'}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{isAdmin ? 'All Staff' : 'My Staff'}</h1>
+          <p className="text-sm text-muted-foreground">
+            {isAdmin ? 'Every staff member across all teams.' : 'Staff members reporting to you.'}
+          </p>
+        </div>
+        <Button onClick={() => setAddStaffOpen(true)}>Add Staff</Button>
       </div>
 
       <div className="rounded-lg border">
@@ -197,6 +389,16 @@ export function StaffPage() {
       </div>
 
       <StaffPerformanceDialog staffMember={selectedStaff} onOpenChange={() => setSelectedStaff(null)} />
+
+      <AddStaffDialog
+        open={addStaffOpen}
+        onOpenChange={setAddStaffOpen}
+        isAdmin={isAdmin}
+        teamLeads={teamLeads}
+        onCreated={(result) => setCreatedStaff(result)}
+      />
+
+      <InviteSentDialog result={createdStaff} onOpenChange={() => setCreatedStaff(null)} />
     </div>
   );
 }

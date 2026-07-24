@@ -3,6 +3,7 @@ import { supabaseAdmin } from '../config/supabaseAdmin';
 import { HttpError } from '../middleware/auth';
 import { unwrap } from '../utils/db';
 import { logActivity } from '../utils/activityLog';
+import { sendInviteEmail } from './email.service';
 import { AuthUser, Role } from '../types';
 
 const PROFILE_COLUMNS =
@@ -120,6 +121,13 @@ export async function createUser(actorId: string, input: CreateUserInput): Promi
     entityId: profile.id,
     action: 'user_created',
     metadata: { role: input.role },
+  });
+
+  await sendInviteEmail({
+    toEmail: profile.email,
+    fullName: profile.full_name,
+    tempPassword,
+    role: profile.role,
   });
 
   return { ...profile, tempPassword };

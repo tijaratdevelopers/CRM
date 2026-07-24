@@ -32,7 +32,9 @@ function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
 
 export function LoginPage() {
   const { session, signIn } = useAuth();
-  const [email, setEmail] = React.useState('');
+  const [email, setEmail] = React.useState(
+    () => new URLSearchParams(window.location.search).get('email') ?? '',
+  );
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);

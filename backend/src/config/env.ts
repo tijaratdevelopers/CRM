@@ -41,4 +41,11 @@ export const env = {
     accessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
     verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',
   },
+  email: {
+    resendApiKey: process.env.RESEND_API_KEY || '',
+    // Resend's shared sandbox sender — works with no domain verification.
+    // Swap to an address on your verified domain once one is set up.
+    from: process.env.EMAIL_FROM || 'Tijarat Developers CRM <onboarding@resend.dev>',
+    replyTo: process.env.EMAIL_REPLY_TO || undefined,
+  },
 };

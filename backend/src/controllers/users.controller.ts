@@ -21,7 +21,15 @@ export async function getById(req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const { email, fullName, phone, role, teamLeadId } = req.body ?? {};
+  const { email, fullName, phone } = req.body ?? {};
+  let { role, teamLeadId } = req.body ?? {};
+
+  // Team leads may only invite staff onto their own team — role/team are not
+  // theirs to choose, regardless of what the client sends.
+  if (req.user!.role === 'team_lead') {
+    role = 'staff';
+    teamLeadId = req.user!.id;
+  }
 
   if (!email || !fullName || !role) {
     throw new HttpError(400, 'email, fullName and role are required');
