@@ -30,6 +30,8 @@ interface CreateUserInput {
   phone?: string;
   role: Role;
   teamLeadId?: string;
+  /** Admin/team-lead can set this explicitly; otherwise a random one is generated. */
+  password?: string;
 }
 
 interface UpdateUserInput {
@@ -88,7 +90,10 @@ export async function listStaffForTeamLead(teamLeadId: string): Promise<UserProf
 }
 
 export async function createUser(actorId: string, input: CreateUserInput): Promise<UserProfile & { tempPassword: string }> {
-  const tempPassword = randomUUID();
+  if (input.password && input.password.length < 6) {
+    throw new HttpError(400, 'Password must be at least 6 characters');
+  }
+  const tempPassword = input.password || randomUUID();
 
   const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
     email: input.email,
@@ -152,6 +157,33 @@ export async function updateUser(actorId: string, id: string, patch: UpdateUserI
   await logActivity({ actorId, entityType: 'user', entityId: id, action: 'user_updated', metadata: updates });
 
   return profile;
+}
+
+/**
+ * Admin can reset anyone's password; a team lead may only reset their own staff's.
+ */
+export async function resetUserPassword(requestingUser: AuthUser, id: string, newPassword: string): Promise<void> {
+  if (newPassword.length < 6) {
+    throw new HttpError(400, 'Password must be at least 6 characters');
+  }
+
+  if (requestingUser.role === 'team_lead') {
+    const target = unwrap(
+      await supabaseAdmin.from('users').select('role, team_lead_id').eq('id', id).single(),
+    ) as { role: Role; team_lead_id: string | null };
+    if (target.role !== 'staff' || target.team_lead_id !== requestingUser.id) {
+      throw new HttpError(403, 'Not authorized to reset this user\'s password');
+    }
+  } else if (requestingUser.role !== 'admin') {
+    throw new HttpError(403, 'Not authorized to reset passwords');
+  }
+
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(id, { password: newPassword });
+  if (error) {
+    throw new HttpError(400, error.message);
+  }
+
+  await logActivity({ actorId: requestingUser.id, entityType: 'user', entityId: id, action: 'user_password_reset' });
 }
 
 export async function deactivateUser(actorId: string, id: string): Promise<UserProfile> {

@@ -10,6 +10,7 @@ import type { Role, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordField } from '@/components/PasswordField';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -59,11 +60,15 @@ const userFormSchema = z
     phone: z.string().optional(),
     role: z.enum(['admin', 'team_lead', 'staff']),
     teamLeadId: z.string().optional(),
+    password: z.string().optional().refine((v) => !v || v.length >= 6, {
+      message: 'Password must be at least 6 characters',
+    }),
   })
   .refine((data) => data.role !== 'staff' || !!data.teamLeadId, {
     message: 'Team lead is required for staff',
     path: ['teamLeadId'],
   });
+
 
 type UserFormValues = z.infer<typeof userFormSchema>;
 
@@ -104,6 +109,7 @@ function UserFormDialog({
     handleSubmit,
     control,
     watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<UserFormValues>({
@@ -114,10 +120,12 @@ function UserFormDialog({
       phone: user?.phone ?? '',
       role: user?.role ?? 'staff',
       teamLeadId: user?.team_lead_id ?? undefined,
+      password: '',
     },
   });
 
   const role = watch('role');
+  const password = watch('password');
 
   React.useEffect(() => {
     if (open) {
@@ -127,6 +135,7 @@ function UserFormDialog({
         phone: user?.phone ?? '',
         role: user?.role ?? 'staff',
         teamLeadId: user?.team_lead_id ?? undefined,
+        password: '',
       });
     }
   }, [open, user, reset]);
@@ -139,6 +148,7 @@ function UserFormDialog({
         phone: values.phone || undefined,
         role: values.role,
         teamLeadId: values.role === 'staff' ? values.teamLeadId : undefined,
+        password: values.password || undefined,
       });
       return data;
     },
@@ -227,6 +237,14 @@ function UserFormDialog({
               )}
             />
           </div>
+          {!isEdit && (
+            <PasswordField
+              id="password"
+              value={password}
+              onChange={(v) => setValue('password', v)}
+              error={errors.password?.message}
+            />
+          )}
           {role === 'staff' && (
             <div className="space-y-1.5">
               <Label htmlFor="teamLeadId">Team lead</Label>
@@ -305,6 +323,65 @@ function TempPasswordDialog({
   );
 }
 
+function ResetPasswordDialog({
+  user,
+  onOpenChange,
+}: {
+  user: UserProfile | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const [password, setPassword] = React.useState('');
+  const [error, setError] = React.useState<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    if (user) {
+      setPassword('');
+      setError(undefined);
+    }
+  }, [user]);
+
+  const resetMutation = useMutation({
+    mutationFn: async () => {
+      await apiClient.patch(`/users/${user!.id}/password`, { password });
+    },
+    onSuccess: () => {
+      toast.success(`Password updated for ${user?.full_name}`);
+      onOpenChange(false);
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleSubmit = () => {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    resetMutation.mutate();
+  };
+
+  return (
+    <Dialog open={!!user} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset password</DialogTitle>
+          <DialogDescription>
+            Set a new password for {user?.full_name}. They'll need it to log in next time.
+          </DialogDescription>
+        </DialogHeader>
+        <PasswordField id="reset-password" value={password} onChange={setPassword} error={error} />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={resetMutation.isPending} onClick={handleSubmit}>
+            {resetMutation.isPending ? 'Saving…' : 'Reset password'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function UsersPage() {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
@@ -312,6 +389,7 @@ export function UsersPage() {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingUser, setEditingUser] = React.useState<UserProfile | null>(null);
   const [createdUser, setCreatedUser] = React.useState<CreatedUserResult | null>(null);
+  const [resetPasswordUser, setResetPasswordUser] = React.useState<UserProfile | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ['users', roleFilter],
@@ -430,6 +508,9 @@ export function UsersPage() {
                     <Button size="sm" variant="outline" onClick={() => handleEditClick(user)}>
                       Edit
                     </Button>
+                    <Button size="sm" variant="outline" onClick={() => setResetPasswordUser(user)}>
+                      Reset password
+                    </Button>
                     <Button
                       size="sm"
                       variant="destructive"
@@ -455,6 +536,8 @@ export function UsersPage() {
       />
 
       <TempPasswordDialog result={createdUser} onOpenChange={() => setCreatedUser(null)} />
+
+      <ResetPasswordDialog user={resetPasswordUser} onOpenChange={() => setResetPasswordUser(null)} />
     </div>
   );
 }

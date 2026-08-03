@@ -21,7 +21,7 @@ export async function getById(req: Request, res: Response) {
 }
 
 export async function create(req: Request, res: Response) {
-  const { email, fullName, phone } = req.body ?? {};
+  const { email, fullName, phone, password } = req.body ?? {};
   let { role, teamLeadId } = req.body ?? {};
 
   // Team leads may only invite staff onto their own team — role/team are not
@@ -38,8 +38,18 @@ export async function create(req: Request, res: Response) {
     throw new HttpError(400, `Invalid role: ${role}`);
   }
 
-  const data = await usersService.createUser(req.user!.id, { email, fullName, phone, role, teamLeadId });
+  const data = await usersService.createUser(req.user!.id, { email, fullName, phone, role, teamLeadId, password });
   res.status(201).json(data);
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const { password } = req.body ?? {};
+  if (!password || typeof password !== 'string') {
+    throw new HttpError(400, 'password is required');
+  }
+
+  await usersService.resetUserPassword(req.user!, req.params.id, password);
+  res.json({ ok: true });
 }
 
 export async function update(req: Request, res: Response) {

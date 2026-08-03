@@ -11,3 +11,4 @@ usersRouter.get('/:id', requireRole('admin', 'team_lead'), usersController.getBy
 usersRouter.post('/', requireRole('admin', 'team_lead'), usersController.create);
 usersRouter.patch('/:id', requireRole('admin'), usersController.update);
 usersRouter.patch('/:id/deactivate', requireRole('admin'), usersController.deactivate);
+usersRouter.patch('/:id/password', requireRole('admin', 'team_lead'), usersController.resetPassword);

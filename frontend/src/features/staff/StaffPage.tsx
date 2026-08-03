@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PasswordField } from '@/components/PasswordField';
 import {
   Table,
   TableBody,
@@ -40,6 +41,9 @@ const addStaffSchema = z.object({
   email: z.string().min(1, 'Email is required').email('Enter a valid email'),
   phone: z.string().optional(),
   teamLeadId: z.string().optional(),
+  password: z.string().optional().refine((v) => !v || v.length >= 6, {
+    message: 'Password must be at least 6 characters',
+  }),
 });
 
 type AddStaffValues = z.infer<typeof addStaffSchema>;
@@ -73,15 +77,19 @@ function AddStaffDialog({
     register,
     handleSubmit,
     control,
+    watch,
+    setValue,
     reset,
     formState: { errors, isSubmitting },
   } = useForm<AddStaffValues>({
     resolver: zodResolver(schema),
-    defaultValues: { fullName: '', email: '', phone: '', teamLeadId: undefined },
+    defaultValues: { fullName: '', email: '', phone: '', teamLeadId: undefined, password: '' },
   });
 
+  const password = watch('password');
+
   React.useEffect(() => {
-    if (open) reset({ fullName: '', email: '', phone: '', teamLeadId: undefined });
+    if (open) reset({ fullName: '', email: '', phone: '', teamLeadId: undefined, password: '' });
   }, [open, reset]);
 
   const createMutation = useMutation({
@@ -92,6 +100,7 @@ function AddStaffDialog({
         phone: values.phone || undefined,
         role: 'staff',
         teamLeadId: isAdmin ? values.teamLeadId : undefined,
+        password: values.password || undefined,
       });
       return data;
     },
@@ -129,6 +138,12 @@ function AddStaffDialog({
             <Label htmlFor="staff-phone">Phone</Label>
             <Input id="staff-phone" {...register('phone')} />
           </div>
+          <PasswordField
+            id="staff-password"
+            value={password}
+            onChange={(v) => setValue('password', v)}
+            error={errors.password?.message}
+          />
           {isAdmin && (
             <div className="space-y-1.5">
               <Label htmlFor="staff-teamLeadId">Team lead</Label>

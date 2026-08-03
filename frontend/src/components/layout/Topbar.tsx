@@ -1,8 +1,12 @@
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Menu, User } from 'lucide-react';
+import { KeyRound, LogOut, Menu, User } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
+import { supabase } from '@/lib/supabaseClient';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,9 +22,83 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { PasswordField } from '@/components/PasswordField';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
 import { GlobalSearch } from './GlobalSearch';
+
+function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
+  const [error, setError] = React.useState<string | undefined>(undefined);
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setPassword('');
+      setConfirmPassword('');
+      setError(undefined);
+    }
+  }, [open]);
+
+  const handleSubmit = async () => {
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setSubmitting(true);
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    setSubmitting(false);
+
+    if (updateError) {
+      toast.error(updateError.message);
+      return;
+    }
+
+    toast.success('Password updated');
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Change password</DialogTitle>
+          <DialogDescription>Set a new password for your account.</DialogDescription>
+        </DialogHeader>
+        <PasswordField id="new-password" value={password} onChange={setPassword} placeholder="New password" />
+        <PasswordField
+          id="confirm-password"
+          value={confirmPassword}
+          onChange={setConfirmPassword}
+          error={error}
+          placeholder="Confirm new password"
+        />
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="button" disabled={submitting} onClick={handleSubmit}>
+            {submitting ? 'Saving…' : 'Update password'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 const ALL_PROJECTS = '__all__';
 
@@ -59,6 +137,7 @@ const ROLE_LABEL: Record<string, string> = {
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const [changePasswordOpen, setChangePasswordOpen] = React.useState(false);
 
   const initials = profile?.full_name
     ?.split(' ')
@@ -105,6 +184,10 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{profile?.email}</DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setChangePasswordOpen(true)}>
+              <KeyRound className="mr-2 h-4 w-4" />
+              Change password
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleSignOut}>
               <LogOut className="mr-2 h-4 w-4" />
               Sign out
@@ -112,6 +195,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
     </header>
   );
 }
