@@ -1,0 +1,75 @@
+import { Request, Response } from 'express';
+import * as usersService from '../services/users.service';
+import { HttpError } from '../middleware/auth';
+import { Role } from '../types';
+
+const VALID_ROLES: Role[] = ['admin', 'team_lead', 'staff'];
+
+export async function list(req: Request, res: Response) {
+  const roleQuery = req.query.role as string | undefined;
+  if (roleQuery && !VALID_ROLES.includes(roleQuery as Role)) {
+    throw new HttpError(400, `Invalid role filter: ${roleQuery}`);
+  }
+
+  const data = await usersService.listUsers(req.user!, roleQuery as Role | undefined);
+  res.json(data);
+}
+
+export async function getById(req: Request, res: Response) {
+  const data = await usersService.getUserById(req.user!, req.params.id);
+  res.json(data);
+}
+
+export async function create(req: Request, res: Response) {
+  const { email, fullName, phone, password } = req.body ?? {};
+  let { role, teamLeadId } = req.body ?? {};
+
+  // Team leads may only invite staff onto their own team — role/team are not
+  // theirs to choose, regardless of what the client sends.
+  if (req.user!.role === 'team_lead') {
+    role = 'staff';
+    teamLeadId = req.user!.id;
+  }
+
+  if (!email || !fullName || !role) {
+    throw new HttpError(400, 'email, fullName and role are required');
+  }
+  if (!VALID_ROLES.includes(role)) {
+    throw new HttpError(400, `Invalid role: ${role}`);
+  }
+
+  const data = await usersService.createUser(req.user!.id, { email, fullName, phone, role, teamLeadId, password });
+  res.status(201).json(data);
+}
+
+export async function resetPassword(req: Request, res: Response) {
+  const { password } = req.body ?? {};
+  if (!password || typeof password !== 'string') {
+    throw new HttpError(400, 'password is required');
+  }
+
+  await usersService.resetUserPassword(req.user!, req.params.id, password);
+  res.json({ ok: true });
+}
+
+export async function update(req: Request, res: Response) {
+  const { fullName, phone, role, teamLeadId, isActive } = req.body ?? {};
+
+  if (role && !VALID_ROLES.includes(role)) {
+    throw new HttpError(400, `Invalid role: ${role}`);
+  }
+
+  const data = await usersService.updateUser(req.user!.id, req.params.id, {
+    fullName,
+    phone,
+    role,
+    teamLeadId,
+    isActive,
+  });
+  res.json(data);
+}
+
+export async function deactivate(req: Request, res: Response) {
+  const data = await usersService.deactivateUser(req.user!.id, req.params.id);
+  res.json(data);
+}

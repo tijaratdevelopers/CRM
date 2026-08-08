@@ -1,0 +1,410 @@
+import { parse } from 'csv-parse/sync';
+import { supabaseAdmin } from '../config/supabaseAdmin';
+import { HttpError } from '../middleware/auth';
+import { unwrap } from '../utils/db';
+import { logActivity } from '../utils/activityLog';
+import { applyLeadScope } from '../utils/scope';
+import { createNotification } from './notifications.service';
+import { autoAssignLead } from './assignment.service';
+import { AuthUser, LeadPriority, LeadStatus } from '../types';
+
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  company: string | null;
+  city: string | null;
+  country: string | null;
+  source_id: string | null;
+  campaign_id: string | null;
+  assigned_staff_id: string | null;
+  assigned_team_lead_id: string | null;
+  assigned_team_id: string | null;
+  project_id: string;
+  status: LeadStatus;
+  priority: LeadPriority;
+  tags: string[];
+  notes: string | null;
+  created_by: string | null;
+  last_modified_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListLeadsFilters {
+  status?: LeadStatus;
+  statuses?: LeadStatus[];
+  priority?: LeadPriority;
+  sourceId?: string;
+  assignedStaffId?: string;
+  assignedTeamLeadId?: string;
+  projectId?: string;
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}
+
+export interface ListLeadsResult {
+  data: Lead[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CreateLeadInput {
+  name: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  country?: string;
+  sourceId?: string;
+  campaignId?: string;
+  assignedStaffId?: string;
+  assignedTeamLeadId?: string;
+  priority?: LeadPriority;
+  tags?: string[];
+  notes?: string;
+  /** Omit to fall back to the "Default Project" (DB column default). */
+  projectId?: string;
+}
+
+export interface UpdateLeadInput {
+  name?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  country?: string;
+  sourceId?: string;
+  campaignId?: string;
+  assignedStaffId?: string | null;
+  assignedTeamLeadId?: string | null;
+  status?: LeadStatus;
+  priority?: LeadPriority;
+  tags?: string[];
+  notes?: string;
+}
+
+export interface AssignLeadInput {
+  assignedStaffId?: string | null;
+  assignedTeamLeadId?: string | null;
+}
+
+const STAFF_EDITABLE_FIELDS: (keyof UpdateLeadInput)[] = ['status', 'priority', 'tags', 'notes'];
+
+/** Admin sees all leads; team_lead sees their team's leads; staff sees only their own. */
+export async function listLeads(
+  user: AuthUser,
+  filters: ListLeadsFilters,
+  page: number,
+  pageSize: number,
+): Promise<ListLeadsResult> {
+  let query = supabaseAdmin.from('leads').select('*', { count: 'exact' });
+  query = applyLeadScope(query, user);
+
+  if (filters.status) query = query.eq('status', filters.status);
+  if (filters.statuses && filters.statuses.length > 0) query = query.in('status', filters.statuses);
+  if (filters.priority) query = query.eq('priority', filters.priority);
+  if (filters.sourceId) query = query.eq('source_id', filters.sourceId);
+  if (filters.assignedStaffId) query = query.eq('assigned_staff_id', filters.assignedStaffId);
+  if (filters.assignedTeamLeadId) query = query.eq('assigned_team_lead_id', filters.assignedTeamLeadId);
+  if (filters.projectId) query = query.eq('project_id', filters.projectId);
+  if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom);
+  if (filters.dateTo) query = query.lte('created_at', filters.dateTo);
+  if (filters.search) {
+    const term = filters.search.replace(/[%,()]/g, '');
+    query = query.or(`name.ilike.%${term}%,phone.ilike.%${term}%,email.ilike.%${term}%,company.ilike.%${term}%`);
+  }
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  const { data, error, count } = await query.order('created_at', { ascending: false }).range(from, to);
+  if (error) {
+    throw new HttpError(400, error.message);
+  }
+
+  return { data: (data ?? []) as Lead[], total: count ?? 0, page, pageSize };
+}
+
+/** Fetches a single lead, scoped to the requesting user's role. 404s (never 403s) if out of scope. */
+export async function getLeadById(user: AuthUser, id: string): Promise<Lead> {
+  let query = supabaseAdmin.from('leads').select('*').eq('id', id);
+  query = applyLeadScope(query, user);
+
+  const { data, error } = await query.single();
+  if (error || !data) {
+    throw new HttpError(404, 'Lead not found');
+  }
+  return data as Lead;
+}
+
+/** Finds or creates a lead source by name and returns its id. */
+async function resolveSourceId(name: string, description: string): Promise<string> {
+  const existing = unwrap(
+    await supabaseAdmin.from('lead_sources').select('id').eq('name', name).maybeSingle(),
+  ) as { id: string } | null;
+  if (existing) return existing.id;
+
+  const created = unwrap(
+    await supabaseAdmin.from('lead_sources').insert({ name, description }).select('id').single(),
+  ) as { id: string };
+  return created.id;
+}
+
+export async function createLead(user: AuthUser, input: CreateLeadInput): Promise<Lead> {
+  const status: LeadStatus = input.assignedStaffId ? 'assigned' : 'new';
+
+  // Leads typed in by hand default to the Manual Entry source so reports and
+  // the leads table always show where a lead came from.
+  const sourceId =
+    input.sourceId ?? (await resolveSourceId('Manual Entry', 'Leads created manually in the CRM'));
+
+  const insertRow: Record<string, unknown> = {
+    name: input.name,
+    phone: input.phone ?? null,
+    whatsapp: input.whatsapp ?? null,
+    email: input.email ?? null,
+    company: input.company ?? null,
+    city: input.city ?? null,
+    country: input.country ?? null,
+    source_id: sourceId,
+    campaign_id: input.campaignId ?? null,
+    assigned_staff_id: input.assignedStaffId ?? null,
+    assigned_team_lead_id: input.assignedTeamLeadId ?? null,
+    status,
+    priority: input.priority ?? 'medium',
+    tags: input.tags ?? [],
+    notes: input.notes ?? null,
+    created_by: user.id,
+    last_modified_by: user.id,
+  };
+  // Omit project_id entirely when not provided so the DB column default
+  // (Default Project) applies — don't send an explicit `undefined`/null.
+  if (input.projectId) insertRow.project_id = input.projectId;
+
+  let lead = unwrap(
+    await supabaseAdmin.from('leads').insert(insertRow).select().single(),
+  ) as Lead;
+
+  if (input.assignedStaffId) {
+    await createNotification({
+      userId: input.assignedStaffId,
+      type: 'lead_assigned',
+      title: 'New lead assigned',
+      body: lead.name,
+      payload: { leadId: lead.id },
+    });
+  } else {
+    // No explicit assignee — hand the lead to the round-robin engine.
+    const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
+    if (assigned) {
+      lead = {
+        ...lead,
+        assigned_staff_id: assigned.staffId,
+        assigned_team_id: assigned.teamId,
+        assigned_team_lead_id: assigned.teamLeadId,
+        status: lead.status === 'new' ? 'assigned' : lead.status,
+      };
+    }
+  }
+
+  return lead;
+}
+
+export async function updateLead(user: AuthUser, id: string, patch: UpdateLeadInput): Promise<Lead> {
+  // Scoped fetch: 404s (not 403) if this lead is outside the user's visibility,
+  // and for staff this also guarantees current.assigned_staff_id === user.id.
+  const current = await getLeadById(user, id);
+
+  if (user.role === 'staff') {
+    const disallowed = Object.keys(patch).filter(
+      (key) => !STAFF_EDITABLE_FIELDS.includes(key as keyof UpdateLeadInput),
+    );
+    if (disallowed.length > 0) {
+      throw new HttpError(403, `Not authorized to update fields: ${disallowed.join(', ')}`);
+    }
+  }
+
+  const updates: Record<string, unknown> = { last_modified_by: user.id };
+  if (patch.name !== undefined) updates.name = patch.name;
+  if (patch.phone !== undefined) updates.phone = patch.phone;
+  if (patch.whatsapp !== undefined) updates.whatsapp = patch.whatsapp;
+  if (patch.email !== undefined) updates.email = patch.email;
+  if (patch.company !== undefined) updates.company = patch.company;
+  if (patch.city !== undefined) updates.city = patch.city;
+  if (patch.country !== undefined) updates.country = patch.country;
+  if (patch.sourceId !== undefined) updates.source_id = patch.sourceId;
+  if (patch.campaignId !== undefined) updates.campaign_id = patch.campaignId;
+  if (patch.assignedStaffId !== undefined) updates.assigned_staff_id = patch.assignedStaffId;
+  if (patch.assignedTeamLeadId !== undefined) updates.assigned_team_lead_id = patch.assignedTeamLeadId;
+  if (patch.status !== undefined) updates.status = patch.status;
+  if (patch.priority !== undefined) updates.priority = patch.priority;
+  if (patch.tags !== undefined) updates.tags = patch.tags;
+  if (patch.notes !== undefined) updates.notes = patch.notes;
+
+  const updated = unwrap(
+    await supabaseAdmin.from('leads').update(updates).eq('id', id).select().single(),
+  ) as Lead;
+
+  if (
+    patch.assignedStaffId !== undefined &&
+    patch.assignedStaffId !== null &&
+    patch.assignedStaffId !== current.assigned_staff_id
+  ) {
+    await createNotification({
+      userId: patch.assignedStaffId,
+      type: 'lead_assigned',
+      title: 'New lead assigned',
+      body: updated.name,
+      payload: { leadId: updated.id },
+    });
+  }
+
+  if (
+    patch.status !== undefined &&
+    patch.status !== current.status &&
+    updated.assigned_team_lead_id &&
+    updated.assigned_team_lead_id !== user.id
+  ) {
+    await createNotification({
+      userId: updated.assigned_team_lead_id,
+      type: 'lead_status_updated',
+      title: 'Lead status updated',
+      body: `${updated.name} is now ${updated.status}`,
+      payload: { leadId: updated.id },
+    });
+  }
+
+  return updated;
+}
+
+export async function assignLead(user: AuthUser, id: string, input: AssignLeadInput): Promise<Lead> {
+  const current = await getLeadById(user, id);
+
+  const updates: Record<string, unknown> = { last_modified_by: user.id };
+  if (input.assignedStaffId !== undefined) updates.assigned_staff_id = input.assignedStaffId;
+  if (input.assignedTeamLeadId !== undefined) updates.assigned_team_lead_id = input.assignedTeamLeadId;
+  if (current.status === 'new') updates.status = 'assigned';
+
+  const updated = unwrap(
+    await supabaseAdmin.from('leads').update(updates).eq('id', id).select().single(),
+  ) as Lead;
+
+  if (
+    input.assignedStaffId !== undefined &&
+    input.assignedStaffId !== null &&
+    input.assignedStaffId !== current.assigned_staff_id
+  ) {
+    await createNotification({
+      userId: input.assignedStaffId,
+      type: 'lead_assigned',
+      title: 'New lead assigned',
+      body: updated.name,
+      payload: { leadId: updated.id },
+    });
+  }
+
+  return updated;
+}
+
+/** Admin-only, hard delete — child records (meetings, follow-ups, call logs, documents, WhatsApp messages) cascade. */
+export async function deleteLead(user: AuthUser, id: string): Promise<void> {
+  // Scoped existence check (404 if out of scope) before allowing the delete.
+  await getLeadById(user, id);
+
+  const { error } = await supabaseAdmin.from('leads').delete().eq('id', id);
+  if (error) {
+    throw new HttpError(400, error.message);
+  }
+}
+
+interface BulkUploadRow {
+  name?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  company?: string;
+  city?: string;
+  country?: string;
+}
+
+export async function bulkUploadLeads(
+  user: AuthUser,
+  fileBuffer: Buffer,
+  projectId?: string,
+): Promise<{ imported: number }> {
+  let records: BulkUploadRow[];
+  try {
+    records = parse(fileBuffer, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+    }) as BulkUploadRow[];
+  } catch (err) {
+    throw new HttpError(400, `Failed to parse CSV: ${(err as Error).message}`);
+  }
+
+  const validRows = records.filter((row) => row.name && row.name.trim().length > 0);
+  if (validRows.length === 0) {
+    throw new HttpError(400, 'CSV file contains no rows with a name');
+  }
+
+  const existingSource = unwrap(
+    await supabaseAdmin.from('lead_sources').select('id').eq('name', 'CSV Upload').maybeSingle(),
+  ) as { id: string } | null;
+
+  const source =
+    existingSource ??
+    (unwrap(
+      await supabaseAdmin
+        .from('lead_sources')
+        .insert({ name: 'CSV Upload', description: 'Leads imported via CSV bulk upload' })
+        .select('id')
+        .single(),
+    ) as { id: string });
+
+  const rowsToInsert = validRows.map((row) => ({
+    name: row.name!.trim(),
+    phone: row.phone?.trim() || null,
+    whatsapp: row.whatsapp?.trim() || null,
+    email: row.email?.trim() || null,
+    company: row.company?.trim() || null,
+    city: row.city?.trim() || null,
+    country: row.country?.trim() || null,
+    source_id: source.id,
+    status: 'new' as LeadStatus,
+    priority: 'medium' as LeadPriority,
+    created_by: user.id,
+    last_modified_by: user.id,
+    // Omitted (undefined) when projectId isn't passed — the DB column
+    // default (Default Project) applies, same as single-lead creation.
+    ...(projectId ? { project_id: projectId } : {}),
+  }));
+
+  const inserted = unwrap(
+    await supabaseAdmin.from('leads').insert(rowsToInsert).select('id, name, project_id'),
+  ) as { id: string; name: string; project_id: string }[];
+
+  // Distribute the whole batch through the round-robin engine. Sequential on
+  // purpose: the engine serializes on the state row anyway, and order is what
+  // produces the T1S1, T2S1, ..., T1S2 pattern.
+  for (const row of inserted) {
+    await autoAssignLead(row.id, row.name, row.project_id);
+  }
+
+  await logActivity({
+    actorId: user.id,
+    entityType: 'lead',
+    entityId: inserted[0]?.id ?? '00000000-0000-0000-0000-000000000000',
+    action: 'leads_bulk_imported',
+    metadata: { count: inserted.length },
+  });
+
+  return { imported: inserted.length };
+}
