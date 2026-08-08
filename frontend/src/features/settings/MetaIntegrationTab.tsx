@@ -206,6 +206,17 @@ function SetupWizard({ projectId }: { projectId: string }) {
     setSelectedForms([]);
   }, [pageId]);
 
+  const disconnectMutation = useMutation({
+    mutationFn: async () => {
+      await apiClient.post('/meta/disconnect', { projectId });
+    },
+    onSuccess: () => {
+      toast.success('Disconnected — you can reconnect to pick a different account or Page');
+      queryClient.invalidateQueries({ queryKey: ['meta-integration-status', projectId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const business = businessesQuery.data?.find((b) => b.id === businessId);
@@ -241,9 +252,25 @@ function SetupWizard({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-        <CheckCircle2 className="h-4 w-4 shrink-0" />
-        Meta account connected — now choose where this project's leads come from.
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <span className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Meta account connected — now choose where this project's leads come from.
+        </span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          disabled={disconnectMutation.isPending}
+          onClick={() => {
+            if (window.confirm('Disconnect this Meta account? You can reconnect and pick a different account or Page.')) {
+              disconnectMutation.mutate();
+            }
+          }}
+        >
+          <Unplug className="mr-2 h-4 w-4" /> Disconnect
+        </Button>
       </div>
 
       {loadingAssets ? (
