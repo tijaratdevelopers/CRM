@@ -18,8 +18,8 @@ function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
     <div
       className={
         size === 'lg'
-          ? 'relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-black/40'
-          : 'relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm'
+          ? 'relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-black/40'
+          : 'relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm'
       }
     >
       <img src="/logo-mark.png" alt="Tijarat Developers" className="h-full w-full object-cover" />
