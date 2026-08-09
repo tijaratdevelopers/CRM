@@ -57,6 +57,94 @@ function GoldSkyline({ tilt }: { tilt: { rx: number; ry: number } }) {
   );
 }
 
+const STARS = Array.from({ length: 40 }, (_, i) => ({
+  id: i,
+  left: (i * 53.7) % 100,
+  top: (i * 31.3) % 62,
+  size: i % 4 === 0 ? 2.5 : 1.5,
+  delay: (i * 137) % 4000,
+  duration: 2400 + ((i * 97) % 2600),
+}));
+
+const SHOOTING_STARS = [
+  { id: 1, top: '10%', left: '8%', delay: 500, duration: 4500 },
+  { id: 2, top: '24%', left: '52%', delay: 2600, duration: 5200 },
+];
+
+const MOBILE_BUILDINGS = [
+  { id: 1, left: 2, width: 22, height: 60, z: -40, delay: 0 },
+  { id: 2, left: 9, width: 30, height: 105, z: 0, delay: 300 },
+  { id: 3, left: 19, width: 18, height: 50, z: -20, delay: 600 },
+  { id: 4, left: 26, width: 34, height: 135, z: 30, delay: 150 },
+  { id: 5, left: 39, width: 24, height: 78, z: 10, delay: 450 },
+  { id: 6, left: 49, width: 28, height: 115, z: 50, delay: 750 },
+  { id: 7, left: 61, width: 20, height: 65, z: -10, delay: 250 },
+  { id: 8, left: 70, width: 32, height: 125, z: 40, delay: 550 },
+  { id: 9, left: 83, width: 22, height: 75, z: 0, delay: 850 },
+  { id: 10, left: 91, width: 18, height: 52, z: -30, delay: 100 },
+];
+
+/** Night skyline scene shown behind the sign-in card on small screens, where the
+ * desktop brand panel is hidden — a starfield + glowing gold moon + 3D gold skyline. */
+function MobileNightScene() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden lg:hidden" aria-hidden="true">
+      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-stone-950 to-amber-950/50" />
+      <div className="absolute inset-0 bg-grid-pattern opacity-[0.04]" />
+
+      {/* glowing moon */}
+      <div className="absolute -top-10 right-6 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
+      <div className="absolute top-8 right-12 h-14 w-14 rounded-full bg-gradient-to-br from-amber-100 via-amber-300 to-amber-500 shadow-[0_0_60px_18px_rgba(245,196,69,0.25)]" />
+
+      {/* starfield */}
+      {STARS.map((s) => (
+        <span
+          key={s.id}
+          className="absolute rounded-full bg-amber-100 motion-safe:animate-twinkle"
+          style={{
+            left: `${s.left}%`,
+            top: `${s.top}%`,
+            width: s.size,
+            height: s.size,
+            animationDelay: `${s.delay}ms`,
+            animationDuration: `${s.duration}ms`,
+          }}
+        />
+      ))}
+
+      {/* shooting stars */}
+      {SHOOTING_STARS.map((s) => (
+        <span
+          key={s.id}
+          className="absolute h-px w-24 -rotate-[28deg] bg-gradient-to-r from-transparent via-amber-200 to-transparent motion-safe:animate-shoot"
+          style={{ top: s.top, left: s.left, animationDelay: `${s.delay}ms`, animationDuration: `${s.duration}ms` }}
+        />
+      ))}
+
+      {/* 3D gold skyline */}
+      <div className="absolute inset-x-0 bottom-0 h-52 sm:h-64" style={{ perspective: '1200px' }}>
+        <div
+          className="relative h-full w-full motion-safe:animate-sway-3d motion-reduce:!transform-none"
+          style={{ transformStyle: 'preserve-3d' }}
+        >
+          {MOBILE_BUILDINGS.map((b) => (
+            <div
+              key={b.id}
+              className="absolute bottom-0"
+              style={{ left: `${b.left}%`, width: b.width, height: b.height, transform: `translateZ(${b.z}px)` }}
+            >
+              <div
+                className="motion-safe:animate-building-float h-full w-full rounded-t-sm bg-gradient-to-t from-amber-900 via-amber-500 to-amber-200 shadow-[0_0_24px_rgba(245,196,69,0.25)]"
+                style={{ animationDelay: `${b.delay}ms` }}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (
     <div
@@ -175,8 +263,7 @@ export function LoginPage() {
 
       {/* Right form panel */}
       <div className="relative flex w-full flex-1 items-center justify-center px-6 py-12 lg:w-1/2">
-        <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] lg:hidden" />
-        <div className="absolute -top-32 right-0 h-72 w-72 rounded-full bg-primary/10 blur-3xl lg:hidden" />
+        <MobileNightScene />
 
         <div className="relative z-10 w-full max-w-sm animate-fade-in-up">
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
