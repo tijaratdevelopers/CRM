@@ -769,9 +769,37 @@ export async function touchLastSynced(projectId: string): Promise<void> {
 // Status
 // ---------------------------------------------------------------------------
 
+/**
+ * Asks Facebook directly (using our own stored page token, not a manually
+ * pasted Graph Explorer token) whether this app is actually subscribed to
+ * the page's leadgen field — ground truth for "why aren't leads arriving?"
+ * without fighting Graph Explorer's own permission prompts.
+ */
+async function checkPageWebhookSubscription(
+  row: MetaIntegrationRow,
+): Promise<{ subscribed: boolean; fields: string[]; error?: string }> {
+  if (!row.page_id || !row.page_access_token) {
+    return { subscribed: false, fields: [], error: 'No page connected yet' };
+  }
+  try {
+    const pageToken = decryptSecret(row.page_access_token)!;
+    const data = await graphRequest<{ data?: { id: string; subscribed_fields?: string[] }[] }>(
+      'GET',
+      `/${row.page_id}/subscribed_apps`,
+      { access_token: pageToken },
+    );
+    const entry = (data.data ?? []).find((app) => app.id === env.meta.appId);
+    return { subscribed: Boolean(entry), fields: entry?.subscribed_fields ?? [] };
+  } catch (err) {
+    return { subscribed: false, fields: [], error: err instanceof HttpError ? err.message : 'Check failed' };
+  }
+}
+
 export async function getStatus(projectId: string) {
   const row = await getIntegrationRow(projectId);
   const state = connectionState(row);
+
+  const pageWebhookSubscription = row && state === 'connected' ? await checkPageWebhookSubscription(row) : null;
 
   return {
     status: state,
@@ -788,6 +816,7 @@ export async function getStatus(projectId: string) {
       redirectUri: env.meta.redirectUri,
       verifyToken: env.meta.verifyToken,
       appSecretConfigured: Boolean(env.meta.appSecret),
+      pageWebhookSubscription,
     },
   };
 }

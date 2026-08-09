@@ -51,6 +51,7 @@ interface MetaStatus {
     redirectUri: string;
     verifyToken: string;
     appSecretConfigured: boolean;
+    pageWebhookSubscription: { subscribed: boolean; fields: string[]; error?: string } | null;
   };
 }
 
@@ -780,8 +781,23 @@ function DeveloperSection({ status }: { status: MetaStatus }) {
         <CopyField label="Verify token" value={status.developer.verifyToken} />
         <p className="text-xs text-muted-foreground">
           App secret configured: {status.developer.appSecretConfigured ? 'yes' : 'no'} · Webhook
-          subscribed: {status.webhookSubscribed ? 'yes' : 'no'}
+          subscribed (at connect time): {status.webhookSubscribed ? 'yes' : 'no'}
         </p>
+        <div className="rounded-lg border bg-background p-3 text-xs">
+          <p className="font-medium text-foreground">Live check — is the Page subscribed right now?</p>
+          {status.developer.pageWebhookSubscription ? (
+            status.developer.pageWebhookSubscription.error ? (
+              <p className="mt-1 text-destructive">Error: {status.developer.pageWebhookSubscription.error}</p>
+            ) : (
+              <p className="mt-1 text-muted-foreground">
+                Subscribed: <strong>{status.developer.pageWebhookSubscription.subscribed ? 'yes' : 'NO'}</strong> ·
+                Fields: {status.developer.pageWebhookSubscription.fields.join(', ') || 'none'}
+              </p>
+            )
+          ) : (
+            <p className="mt-1 text-muted-foreground">Not checked (no page connected yet).</p>
+          )}
+        </div>
       </div>
     </details>
   );
