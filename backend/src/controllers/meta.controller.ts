@@ -1,13 +1,8 @@
 import { Request, Response } from 'express';
 import { env } from '../config/env';
-import { supabaseAdmin } from '../config/supabaseAdmin';
-import { verifyWebhookSignature, fetchLeadDetailsFromMeta, MetaLeadDetails } from '../integrations/meta.service';
-import { createNotification } from '../services/notifications.service';
-import { autoAssignLead } from '../services/assignment.service';
+import { verifyWebhookSignature } from '../integrations/meta.service';
 import * as metaIntegration from '../services/metaIntegration.service';
 import { HttpError } from '../middleware/auth';
-
-const META_LEAD_SOURCE_NAME = 'Meta Lead Ads';
 
 function requireProjectId(value: unknown): string {
   if (!value || typeof value !== 'string') {
@@ -175,83 +170,6 @@ export function verifyWebhook(req: Request, res: Response) {
   res.sendStatus(403);
 }
 
-function buildLeadNotes(details: MetaLeadDetails): string {
-  const lines = [`Meta leadgen_id: ${details.leadgenId}`, 'Source: Facebook/Instagram Lead Ad'];
-  if (details.company) lines.push(`Company: ${details.company}`);
-  if (details.city) lines.push(`City: ${details.city}`);
-  return lines.join('\n');
-}
-
-/** Fallback when the round-robin engine has no one to assign to — admins need to know. */
-async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<void> {
-  const { data: admins } = await supabaseAdmin.from('users').select('id').eq('role', 'admin').eq('is_active', true);
-
-  await Promise.all(
-    (admins ?? []).map((admin: { id: string }) =>
-      createNotification({
-        userId: admin.id,
-        type: 'lead_new_unassigned',
-        title: 'New lead from Meta Ads',
-        body: leadName,
-        payload: { leadId },
-      }),
-    ),
-  );
-}
-
-async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: string): Promise<void> {
-  // Resolves which project this event belongs to (by form, then page) — null
-  // means it belongs to no configured project, so it's ignored entirely.
-  const target = await metaIntegration.resolveLeadgenEventTarget(pageId, formId);
-  if (!target || !target.pageAccessToken) return;
-
-  // Meta can redeliver the same event on retry — skip if we already recorded this leadgen_id.
-  const existing = await supabaseAdmin.from('leads').select('id').ilike('notes', `%leadgen_id: ${leadgenId}%`).maybeSingle();
-  if (existing.data) return;
-
-  const details = await fetchLeadDetailsFromMeta(leadgenId, target.pageAccessToken);
-
-  const source = await supabaseAdmin.from('lead_sources').select('id').eq('name', META_LEAD_SOURCE_NAME).maybeSingle();
-
-  const { data: lead, error } = await supabaseAdmin
-    .from('leads')
-    .insert({
-      name: details.fullName || `Meta Lead ${leadgenId}`,
-      phone: details.phone ?? null,
-      email: details.email ?? null,
-      company: details.company ?? null,
-      city: details.city ?? null,
-      source_id: source.data?.id ?? null,
-      status: 'new',
-      priority: 'medium',
-      notes: buildLeadNotes(details),
-      created_by: null,
-      last_modified_by: null,
-      project_id: target.projectId,
-      meta_page_id: target.pageRowId,
-      meta_form_id: target.formRowId,
-      meta_campaign_ref: details.campaignId ?? null,
-      meta_ad_set_ref: details.adSetId ?? null,
-      meta_ad_ref: details.adId ?? null,
-    })
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Failed to insert Meta lead', leadgenId, error);
-    return;
-  }
-
-  await metaIntegration.touchLastSynced(target.projectId);
-
-  // Round-robin auto-assignment (notifies the chosen staff member itself);
-  // only fall back to notifying admins when nobody was available.
-  const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
-  if (!assigned) {
-    await notifyAdminsOfNewLead(lead.id, lead.name);
-  }
-}
-
 /**
  * POST /webhook — Meta Lead Ads webhook. Not behind requireAuth. Verifies the
  * X-Hub-Signature-256 header only when a real app secret is configured (so
@@ -278,7 +196,7 @@ export async function receiveWebhook(req: Request, res: Response) {
       if (!leadgenId) continue;
 
       try {
-        await processLeadgenEvent(leadgenId, value?.page_id, value?.form_id);
+        await metaIntegration.processLeadgenEvent(leadgenId, value?.page_id, value?.form_id);
       } catch (err) {
         console.error('Failed to process Meta leadgen event', leadgenId, err);
       }

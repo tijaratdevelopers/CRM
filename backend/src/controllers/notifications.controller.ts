@@ -1,8 +1,13 @@
 import { Request, Response } from 'express';
 import * as notificationsService from '../services/notifications.service';
+import * as metaIntegration from '../services/metaIntegration.service';
 import { HttpError } from '../middleware/auth';
 
 export async function list(req: Request, res: Response) {
+  // Piggybacks Meta's lead-polling fallback on this frequently-hit,
+  // already-authenticated endpoint — self-throttled, so this is cheap.
+  metaIntegration.maybePollForNewLeads();
+
   const unreadOnly = req.query.unread === 'true';
   const data = await notificationsService.listNotifications(req.user!.id, unreadOnly);
   res.json(data);

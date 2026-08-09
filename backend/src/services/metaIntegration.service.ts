@@ -3,9 +3,13 @@ import { env } from '../config/env';
 import { supabaseAdmin } from '../config/supabaseAdmin';
 import { HttpError } from '../middleware/auth';
 import { encryptSecret, decryptSecret } from '../utils/crypto';
+import { fetchLeadDetailsFromMeta, MetaLeadDetails } from '../integrations/meta.service';
+import { createNotification } from './notifications.service';
+import { autoAssignLead } from './assignment.service';
 
 export const GRAPH_API_VERSION = 'v21.0';
 const GRAPH = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
+const META_LEAD_SOURCE_NAME = 'Meta Lead Ads';
 
 // pages_manage_metadata is required to subscribe the page to the leadgen
 // webhook; ads_read/ads_management + business_management are required to list
@@ -763,6 +767,171 @@ export async function touchLastSynced(projectId: string): Promise<void> {
   const row = await getIntegrationRow(projectId);
   if (!row) return;
   await supabaseAdmin.from('meta_integrations').update({ last_synced_at: new Date().toISOString() }).eq('id', row.id);
+}
+
+// ---------------------------------------------------------------------------
+// Lead ingestion — shared by the webhook handler and the polling fallback
+// below (Meta occasionally accepts a lead but never calls our webhook; see
+// the Developer settings panel in Settings > Integrations for the checks
+// that ruled out a config problem on our side).
+// ---------------------------------------------------------------------------
+
+function buildLeadNotes(details: MetaLeadDetails): string {
+  const lines = [`Meta leadgen_id: ${details.leadgenId}`, 'Source: Facebook/Instagram Lead Ad'];
+  if (details.company) lines.push(`Company: ${details.company}`);
+  if (details.city) lines.push(`City: ${details.city}`);
+  return lines.join('\n');
+}
+
+/** Fallback when the round-robin engine has no one to assign to — admins need to know. */
+async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<void> {
+  const { data: admins } = await supabaseAdmin.from('users').select('id').eq('role', 'admin').eq('is_active', true);
+
+  await Promise.all(
+    (admins ?? []).map((admin: { id: string }) =>
+      createNotification({
+        userId: admin.id,
+        type: 'lead_new_unassigned',
+        title: 'New lead from Meta Ads',
+        body: leadName,
+        payload: { leadId },
+      }),
+    ),
+  );
+}
+
+/** Returns true if a new lead row was created (false if already recorded or ignored). */
+export async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: string): Promise<boolean> {
+  // Resolves which project this event belongs to (by form, then page) — null
+  // means it belongs to no configured project, so it's ignored entirely.
+  const target = await resolveLeadgenEventTarget(pageId, formId);
+  if (!target || !target.pageAccessToken) return false;
+
+  // Meta can redeliver the same event on retry (and the poller re-checks
+  // recent leads every run) — skip if we already recorded this leadgen_id.
+  const existing = await supabaseAdmin.from('leads').select('id').ilike('notes', `%leadgen_id: ${leadgenId}%`).maybeSingle();
+  if (existing.data) return false;
+
+  const details = await fetchLeadDetailsFromMeta(leadgenId, target.pageAccessToken);
+
+  const source = await supabaseAdmin.from('lead_sources').select('id').eq('name', META_LEAD_SOURCE_NAME).maybeSingle();
+
+  const { data: lead, error } = await supabaseAdmin
+    .from('leads')
+    .insert({
+      name: details.fullName || `Meta Lead ${leadgenId}`,
+      phone: details.phone ?? null,
+      email: details.email ?? null,
+      company: details.company ?? null,
+      city: details.city ?? null,
+      source_id: source.data?.id ?? null,
+      status: 'new',
+      priority: 'medium',
+      notes: buildLeadNotes(details),
+      created_by: null,
+      last_modified_by: null,
+      project_id: target.projectId,
+      meta_page_id: target.pageRowId,
+      meta_form_id: target.formRowId,
+      meta_campaign_ref: details.campaignId ?? null,
+      meta_ad_set_ref: details.adSetId ?? null,
+      meta_ad_ref: details.adId ?? null,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Failed to insert Meta lead', leadgenId, error);
+    return false;
+  }
+
+  await touchLastSynced(target.projectId);
+
+  // Round-robin auto-assignment (notifies the chosen staff member itself);
+  // only fall back to notifying admins when nobody was available.
+  const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
+  if (!assigned) {
+    await notifyAdminsOfNewLead(lead.id, lead.name);
+  }
+  return true;
+}
+
+// ---------------------------------------------------------------------------
+// Polling fallback — Vercel's free-tier cron only runs once a day, which
+// isn't often enough on its own, so this also gets a fire-and-forget nudge
+// from maybePollForNewLeads() on ordinary authenticated traffic (see
+// notifications.controller.ts) so leads still show up promptly whenever
+// someone has the CRM open, without needing a paid Vercel plan.
+// ---------------------------------------------------------------------------
+
+interface PollableForm {
+  formId: string;
+  pageId: string;
+  pageAccessToken: string;
+}
+
+async function listActiveFormsForPolling(): Promise<PollableForm[]> {
+  const { data, error } = await supabaseAdmin
+    .from('meta_forms')
+    .select('form_id, is_active, meta_pages!inner(page_id, page_access_token, is_active)')
+    .eq('is_active', true);
+  if (error) throw new HttpError(500, error.message);
+
+  return ((data as any[]) ?? [])
+    .filter((f) => f.meta_pages?.is_active && f.meta_pages?.page_access_token)
+    .map((f) => ({
+      formId: f.form_id as string,
+      pageId: f.meta_pages.page_id as string,
+      pageAccessToken: decryptSecret(f.meta_pages.page_access_token as string)!,
+    }));
+}
+
+async function listRecentLeadIds(formId: string, pageAccessToken: string): Promise<string[]> {
+  const data = await graphRequest<{ data?: { id: string }[] }>('GET', `/${formId}/leads`, {
+    fields: 'id',
+    limit: '50',
+    access_token: pageAccessToken,
+  });
+  return (data.data ?? []).map((l) => l.id);
+}
+
+/** Checks every connected form's most recent leads and ingests any this project doesn't have yet. */
+export async function pollAllFormsForNewLeads(): Promise<{ checked: number; inserted: number }> {
+  const forms = await listActiveFormsForPolling();
+  let checked = 0;
+  let inserted = 0;
+
+  for (const form of forms) {
+    try {
+      const leadIds = await listRecentLeadIds(form.formId, form.pageAccessToken);
+      for (const leadgenId of leadIds) {
+        checked += 1;
+        const created = await processLeadgenEvent(leadgenId, form.pageId, form.formId);
+        if (created) inserted += 1;
+      }
+    } catch (err) {
+      console.error('Meta lead poll failed for form', form.formId, err);
+    }
+  }
+
+  return { checked, inserted };
+}
+
+let lastPollAttemptAt = 0;
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Fire-and-forget, self-throttled to once per POLL_INTERVAL_MS regardless of
+ * how often the caller is hit — safe to call from a frequently-polled
+ * endpoint like GET /api/notifications so leads sync roughly every 5 minutes
+ * whenever the CRM is open, without needing Vercel's paid cron tier.
+ */
+export function maybePollForNewLeads(): void {
+  if (!env.meta.appId || !env.meta.appSecret) return;
+  const now = Date.now();
+  if (now - lastPollAttemptAt < POLL_INTERVAL_MS) return;
+  lastPollAttemptAt = now;
+  pollAllFormsForNewLeads().catch((err) => console.error('Meta lead poll failed', err));
 }
 
 // ---------------------------------------------------------------------------
