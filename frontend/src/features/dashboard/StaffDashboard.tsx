@@ -57,7 +57,7 @@ export function StaffDashboard() {
         eyebrow="Tijarat Developers · My Desk"
         title={`Good to see you${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}`}
         subtitle="Your leads arrive here automatically — call, follow up, and close. Today's pipeline is ready for you."
-        gradient="bg-gradient-to-br from-amber-500 via-amber-600 to-emerald-700"
+        gradient="bg-gradient-to-br from-amber-600 via-amber-700 to-neutral-900"
         icon={<UserCircle2 className="h-8 w-8" />}
       />
 

@@ -45,7 +45,7 @@ export function TeamLeadDashboard() {
         eyebrow="Tijarat Developers · Team Desk"
         title={`Hi${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} — here's your team today`}
         subtitle="Fresh leads land on your team automatically. Watch follow-ups, meetings and conversions move in real time."
-        gradient="bg-gradient-to-br from-teal-800 via-emerald-600 to-emerald-500"
+        gradient="bg-gradient-to-br from-stone-900 via-neutral-800 to-yellow-700"
         icon={<UsersRound className="h-8 w-8" />}
       />
 

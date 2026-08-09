@@ -6,11 +6,11 @@ import { cn } from '@/lib/utils';
 export type StatAccent = 'violet' | 'emerald' | 'amber' | 'sky' | 'rose' | 'indigo';
 
 const ACCENT_STYLES: Record<StatAccent, { tile: string; ring: string }> = {
-  emerald: { tile: 'from-emerald-500 to-teal-700', ring: 'hover:shadow-emerald-500/20' },
-  amber: { tile: 'from-amber-400 to-yellow-600', ring: 'hover:shadow-amber-500/20' },
-  sky: { tile: 'from-teal-400 to-cyan-600', ring: 'hover:shadow-teal-500/20' },
-  violet: { tile: 'from-emerald-600 to-green-800', ring: 'hover:shadow-emerald-600/20' },
-  indigo: { tile: 'from-teal-600 to-emerald-800', ring: 'hover:shadow-teal-600/20' },
+  emerald: { tile: 'from-amber-500 to-yellow-700', ring: 'hover:shadow-amber-500/20' },
+  amber: { tile: 'from-amber-400 to-orange-600', ring: 'hover:shadow-amber-500/20' },
+  sky: { tile: 'from-stone-400 to-stone-600', ring: 'hover:shadow-stone-500/20' },
+  violet: { tile: 'from-yellow-600 to-amber-800', ring: 'hover:shadow-amber-600/20' },
+  indigo: { tile: 'from-neutral-500 to-neutral-800', ring: 'hover:shadow-neutral-600/20' },
   rose: { tile: 'from-rose-500 to-red-700', ring: 'hover:shadow-rose-500/20' },
 };
 

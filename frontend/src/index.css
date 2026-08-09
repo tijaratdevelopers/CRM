@@ -4,47 +4,47 @@
 
 @layer base {
   :root {
-    /* Tijarat Developers brand — emerald (growth/trade) + gold (value) on warm ivory. */
-    --background: 45 40% 98%;
-    --foreground: 168 40% 10%;
-    --card: 0 0% 100%;
-    --card-foreground: 168 40% 10%;
-    --primary: 160 84% 27%;
-    --primary-foreground: 45 40% 98%;
-    --secondary: 160 25% 95%;
-    --secondary-foreground: 168 40% 12%;
-    --muted: 150 20% 95%;
-    --muted-foreground: 165 12% 42%;
-    --accent: 158 60% 94%;
-    --accent-foreground: 160 84% 22%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 45 40% 98%;
-    --border: 155 18% 88%;
-    --input: 155 18% 88%;
-    --ring: 160 84% 30%;
+    /* Tijarat Developers brand — black & gold, matching the logo. */
+    --background: 20 14% 7%;
+    --foreground: 40 33% 92%;
+    --card: 20 14% 10%;
+    --card-foreground: 40 33% 92%;
+    --primary: 38 55% 52%;
+    --primary-foreground: 20 14% 8%;
+    --secondary: 20 12% 14%;
+    --secondary-foreground: 40 30% 90%;
+    --muted: 20 12% 14%;
+    --muted-foreground: 30 10% 62%;
+    --accent: 38 35% 16%;
+    --accent-foreground: 40 55% 82%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 40 30% 95%;
+    --border: 20 12% 18%;
+    --input: 20 12% 18%;
+    --ring: 38 55% 52%;
     --radius: 0.85rem;
-    --gold: 40 92% 50%;
+    --gold: 38 70% 58%;
   }
 
   .dark {
-    --background: 172 40% 6%;
-    --foreground: 150 30% 96%;
-    --card: 170 35% 9%;
-    --card-foreground: 150 30% 96%;
-    --primary: 158 70% 45%;
-    --primary-foreground: 172 40% 7%;
-    --secondary: 168 25% 15%;
-    --secondary-foreground: 150 30% 96%;
-    --muted: 168 25% 15%;
-    --muted-foreground: 155 12% 62%;
-    --accent: 162 40% 18%;
-    --accent-foreground: 150 30% 96%;
-    --destructive: 0 63% 40%;
-    --destructive-foreground: 150 30% 96%;
-    --border: 168 25% 18%;
-    --input: 168 25% 18%;
-    --ring: 158 70% 45%;
-    --gold: 42 90% 55%;
+    --background: 20 14% 7%;
+    --foreground: 40 33% 92%;
+    --card: 20 14% 10%;
+    --card-foreground: 40 33% 92%;
+    --primary: 38 55% 52%;
+    --primary-foreground: 20 14% 8%;
+    --secondary: 20 12% 14%;
+    --secondary-foreground: 40 30% 90%;
+    --muted: 20 12% 14%;
+    --muted-foreground: 30 10% 62%;
+    --accent: 38 35% 16%;
+    --accent-foreground: 40 55% 82%;
+    --destructive: 0 65% 48%;
+    --destructive-foreground: 40 30% 95%;
+    --border: 20 12% 18%;
+    --input: 20 12% 18%;
+    --ring: 38 55% 52%;
+    --gold: 38 70% 58%;
   }
 
   * {
@@ -83,7 +83,7 @@
   }
 
   .text-gradient-brand {
-    background: linear-gradient(100deg, #34d399 0%, #10b981 35%, #f5c445 100%);
+    background: linear-gradient(100deg, #e8c377 0%, #cb9b47 45%, #f0d28a 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -91,8 +91,8 @@
 
   .bg-sidebar-brand {
     background:
-      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(245, 196, 69, 0.12), transparent),
-      linear-gradient(180deg, #04231b 0%, #06301f 55%, #052018 100%);
+      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(203, 155, 71, 0.14), transparent),
+      linear-gradient(180deg, #120e0c 0%, #1b1512 55%, #14100d 100%);
   }
 
   .sheen-overlay {

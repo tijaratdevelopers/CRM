@@ -18,13 +18,11 @@ function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
     <div
       className={
         size === 'lg'
-          ? 'relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-400 via-emerald-600 to-teal-800 shadow-lg shadow-emerald-900/40'
-          : 'relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/15 backdrop-blur-sm'
+          ? 'relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-black/40'
+          : 'relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm'
       }
     >
-      <span className={size === 'lg' ? 'text-base font-extrabold text-amber-300' : 'text-sm font-extrabold text-amber-300'}>
-        TD
-      </span>
+      <img src="/logo-mark.png" alt="Tijarat Developers" className="h-full w-full object-cover" />
       <span className="sheen-overlay rounded-2xl" />
     </div>
   );
@@ -57,13 +55,13 @@ export function LoginPage() {
     <div className="relative flex min-h-screen w-full overflow-hidden bg-background font-sans">
       {/* Left brand panel */}
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex">
-        <div className="absolute inset-0 bg-gradient-to-br from-emerald-900 via-emerald-700 to-teal-600 bg-[length:200%_200%] animate-gradient-x" />
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-stone-900 to-amber-950 bg-[length:200%_200%] animate-gradient-x" />
         <div className="absolute inset-0 bg-grid-pattern opacity-20" />
 
         {/* animated blobs */}
         <div className="pointer-events-none absolute -left-24 -top-24 h-96 w-96 rounded-full bg-amber-300/20 mix-blend-soft-light blur-3xl animate-blob" />
-        <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-emerald-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-2000" />
-        <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-teal-300/30 mix-blend-soft-light blur-3xl animate-blob animation-delay-4000" />
+        <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-amber-500/20 mix-blend-soft-light blur-3xl animate-blob animation-delay-2000" />
+        <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-yellow-600/20 mix-blend-soft-light blur-3xl animate-blob animation-delay-4000" />
 
         <div className="relative z-10 flex items-center gap-2.5 animate-fade-in-up">
           <BrandMark />
@@ -71,7 +69,7 @@ export function LoginPage() {
             <span className="text-lg font-extrabold tracking-tight">
               Tijarat <span className="text-amber-300">Developers</span>
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-emerald-200/80">CRM Suite</span>
+            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-100/60">CRM Suite</span>
           </div>
         </div>
 
@@ -177,7 +175,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="relative w-full overflow-hidden bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-500 bg-[length:200%_200%] text-white shadow-lg shadow-emerald-600/25 transition-all hover:shadow-emerald-600/40 hover:brightness-110 animate-gradient-x"
+                className="relative w-full overflow-hidden bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 bg-[length:200%_200%] text-black shadow-lg shadow-amber-600/25 transition-all hover:shadow-amber-600/40 hover:brightness-110 animate-gradient-x"
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </Button>
