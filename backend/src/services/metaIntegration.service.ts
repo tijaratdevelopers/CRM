@@ -10,10 +10,13 @@ const GRAPH = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 // pages_manage_metadata is required to subscribe the page to the leadgen
 // webhook; ads_read/ads_management + business_management are required to list
 // ad accounts/campaigns/ad sets/ads/pixels for the import-and-track hierarchy.
+// pages_manage_ads is required alongside leads_retrieval to list/read a
+// Page's leadgen_forms (Meta's Lead Ads docs require both together).
 export const OAUTH_SCOPES = [
   'pages_show_list',
   'pages_read_engagement',
   'pages_manage_metadata',
+  'pages_manage_ads',
   'leads_retrieval',
   'business_management',
   'whatsapp_business_management',
