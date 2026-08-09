@@ -446,6 +446,39 @@ function AdAccountsSection({ projectId }: { projectId: string }) {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const fetchHierarchy = async () => {
+    const { data } = await apiClient.get<{ adAccounts: AdHierarchyAccount[] }>('/meta/ad-hierarchy', {
+      params: { projectId },
+    });
+    return data.adAccounts;
+  };
+
+  /** One click instead of manually syncing campaigns, then every ad set, then every ad. */
+  const syncAllMutation = useMutation({
+    mutationFn: async (accountId: string) => {
+      await apiClient.post(`/meta/ad-accounts/${accountId}/sync-campaigns`);
+
+      let tree = await fetchHierarchy();
+      const campaigns = tree.find((a) => a.id === accountId)?.children ?? [];
+      for (const campaign of campaigns) {
+        await apiClient.post(`/meta/campaigns/${campaign.id}/sync-ad-sets`);
+      }
+
+      tree = await fetchHierarchy();
+      const adSets = (tree.find((a) => a.id === accountId)?.children ?? []).flatMap(
+        (campaign) => campaign.children ?? [],
+      );
+      for (const adSet of adSets) {
+        await apiClient.post(`/meta/ad-sets/${adSet.id}/sync-ads`);
+      }
+    },
+    onSuccess: () => {
+      toast.success('Synced everything — campaigns, ad sets, and ads');
+      queryClient.invalidateQueries({ queryKey: ['meta-ad-hierarchy', projectId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   function toggleAccount(id: string, checked: boolean) {
     setCheckedIds((prev) => {
       const next = new Set(prev);
@@ -530,17 +563,37 @@ function AdAccountsSection({ projectId }: { projectId: string }) {
                   <span className="text-sm font-medium text-foreground">
                     {account.name ?? account.externalId} {account.currency ? `(${account.currency})` : ''}
                   </span>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={syncMutation.isPending}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      syncMutation.mutate({ kind: 'campaigns', id: account.id });
-                    }}
-                  >
-                    Sync campaigns
-                  </Button>
+                  <span className="flex shrink-0 gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={syncMutation.isPending}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        syncMutation.mutate({ kind: 'campaigns', id: account.id });
+                      }}
+                    >
+                      Sync campaigns
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={syncAllMutation.isPending}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        syncAllMutation.mutate(account.id);
+                      }}
+                    >
+                      {syncAllMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Syncing everything…
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCcw className="mr-2 h-4 w-4" /> Sync everything
+                        </>
+                      )}
+                    </Button>
+                  </span>
                 </summary>
                 <div className="mt-2 space-y-2 pl-3">
                   {(account.children ?? []).length === 0 && (
