@@ -84,6 +84,22 @@ const MOBILE_BUILDINGS = [
   { id: 10, left: 91, width: 18, height: 52, z: -30, delay: 100 },
 ];
 
+/** A slow-drifting ribbon of gold light, like an aurora — the signature glow effect
+ * behind the sign-in card, echoing flowing light-wave backgrounds. Layered blurred
+ * gradient streaks, each tilted and offset, animated together as one group. */
+function AuroraRibbon({ className }: { className?: string }) {
+  return (
+    <div
+      className={`pointer-events-none absolute motion-safe:animate-ribbon-drift motion-reduce:!transform-none ${className ?? ''}`}
+      aria-hidden="true"
+    >
+      <div className="absolute left-[-15%] top-[20%] h-16 w-[130%] -rotate-6 rounded-full bg-gradient-to-r from-transparent via-orange-500/35 to-transparent blur-3xl" />
+      <div className="absolute left-[-15%] top-[48%] h-12 w-[130%] rotate-3 rounded-full bg-gradient-to-r from-transparent via-amber-400/50 to-transparent blur-2xl" />
+      <div className="absolute left-[-15%] top-[70%] h-8 w-[130%] -rotate-2 rounded-full bg-gradient-to-r from-transparent via-amber-200/40 to-transparent blur-xl" />
+    </div>
+  );
+}
+
 /** Night skyline scene shown behind the sign-in card on small screens, where the
  * desktop brand panel is hidden — a starfield + glowing gold moon + 3D gold skyline. */
 function MobileNightScene() {
@@ -95,6 +111,9 @@ function MobileNightScene() {
       {/* glowing moon */}
       <div className="absolute -top-10 right-6 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
       <div className="absolute top-8 right-12 h-14 w-14 rounded-full bg-gradient-to-br from-amber-100 via-amber-300 to-amber-500 shadow-[0_0_60px_18px_rgba(245,196,69,0.25)]" />
+
+      {/* aurora ribbon */}
+      <AuroraRibbon className="inset-x-0 top-[36%] h-40 w-full opacity-80" />
 
       {/* starfield */}
       {STARS.map((s) => (
@@ -141,6 +160,30 @@ function MobileNightScene() {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+const GLOW_SPARKLES = [
+  { id: 1, left: '78%', top: '14%', size: 3, delay: 300 },
+  { id: 2, left: '85%', top: '20%', size: 2, delay: 1200 },
+  { id: 3, left: '15%', top: '72%', size: 2.5, delay: 2000 },
+  { id: 4, left: '10%', top: '18%', size: 1.5, delay: 800 },
+];
+
+/** Subtle aurora glow behind the sign-in card on wide screens, where the form panel
+ * otherwise sits on flat background — keeps the desktop view from feeling bare. */
+function DesktopFormGlow() {
+  return (
+    <div className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block" aria-hidden="true">
+      <AuroraRibbon className="inset-x-0 top-1/3 h-64 w-full opacity-60" />
+      {GLOW_SPARKLES.map((s) => (
+        <span
+          key={s.id}
+          className="absolute rounded-full bg-amber-200 motion-safe:animate-twinkle"
+          style={{ left: s.left, top: s.top, width: s.size, height: s.size, animationDelay: `${s.delay}ms` }}
+        />
+      ))}
     </div>
   );
 }
@@ -264,6 +307,7 @@ export function LoginPage() {
       {/* Right form panel */}
       <div className="relative flex w-full flex-1 items-center justify-center px-6 py-12 lg:w-1/2">
         <MobileNightScene />
+        <DesktopFormGlow />
 
         <div className="relative z-10 w-full max-w-sm animate-fade-in-up">
           <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">

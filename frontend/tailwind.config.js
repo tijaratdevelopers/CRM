@@ -107,6 +107,10 @@ export default {
           '0%, 100%': { transform: 'rotateY(-7deg)' },
           '50%': { transform: 'rotateY(7deg)' },
         },
+        'ribbon-drift': {
+          '0%, 100%': { transform: 'translate(-2%, 0px) scaleX(1)' },
+          '50%': { transform: 'translate(2%, -8px) scaleX(1.03)' },
+        },
       },
       animation: {
         blob: 'blob 12s infinite ease-in-out',
@@ -123,6 +127,7 @@ export default {
         twinkle: 'twinkle 3s ease-in-out infinite',
         shoot: 'shoot 4s ease-in infinite',
         'sway-3d': 'sway-3d 9s ease-in-out infinite',
+        'ribbon-drift': 'ribbon-drift 14s ease-in-out infinite',
       },
     },
   },
