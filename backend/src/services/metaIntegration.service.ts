@@ -786,13 +786,14 @@ async function checkAppWebhookSubscription(): Promise<{
 }> {
   try {
     const data = await graphRequest<{
-      data?: { object: string; callback_url: string; active: boolean; fields: string[] }[];
+      data?: { object: string; callback_url: string; active: boolean; fields: (string | { name: string })[] }[];
     }>('GET', `/${env.meta.appId}/subscriptions`, {
       access_token: `${env.meta.appId}|${env.meta.appSecret}`,
     });
     const pageSub = (data.data ?? []).find((s) => s.object === 'page');
     if (!pageSub) return { active: false, error: 'No "page" object subscription registered at the app level' };
-    return { active: pageSub.active, callbackUrl: pageSub.callback_url, fields: pageSub.fields ?? [] };
+    const fields = (pageSub.fields ?? []).map((f) => (typeof f === 'string' ? f : f.name));
+    return { active: pageSub.active, callbackUrl: pageSub.callback_url, fields };
   } catch (err) {
     return { active: false, error: err instanceof HttpError ? err.message : 'Check failed' };
   }
