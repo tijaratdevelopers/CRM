@@ -9,6 +9,10 @@ export function connectSocket(token: string): Socket {
   socket = io((import.meta.env.VITE_SOCKET_URL as string) || undefined, {
     auth: { token },
     autoConnect: true,
+    // The production backend runs as a Vercel serverless function, which
+    // can't hold a persistent Socket.io connection — retrying forever just
+    // spams the console and the network tab with failing polling requests.
+    reconnection: false,
   });
 
   return socket;
