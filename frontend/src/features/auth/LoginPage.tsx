@@ -13,13 +13,57 @@ const HIGHLIGHTS = [
   { icon: ShieldCheck, label: 'Role-based security', desc: 'Admin, team lead and staff — each sees exactly their work' },
 ];
 
+/** A small skyline of gold towers rendered in real 3D space (perspective + translateZ),
+ * echoing the buildings in the brand mark. Tilts toward the cursor and idles with a gentle bob. */
+const BUILDINGS = [
+  { id: 1, left: 0, width: 30, height: 100, z: -50, delay: 0 },
+  { id: 2, left: 34, width: 42, height: 170, z: 0, delay: 300 },
+  { id: 3, left: 82, width: 26, height: 80, z: -30, delay: 600 },
+  { id: 4, left: 114, width: 48, height: 210, z: 50, delay: 150 },
+  { id: 5, left: 168, width: 32, height: 130, z: 10, delay: 450 },
+  { id: 6, left: 206, width: 38, height: 180, z: 70, delay: 750 },
+];
+
+function GoldSkyline({ tilt }: { tilt: { rx: number; ry: number } }) {
+  return (
+    <div
+      className="pointer-events-none absolute bottom-0 right-0 h-64 w-64 sm:w-72"
+      style={{ perspective: '1400px' }}
+      aria-hidden="true"
+    >
+      <div className="absolute -bottom-4 left-1/2 h-6 w-48 -translate-x-1/2 rounded-full bg-amber-400/25 blur-2xl" />
+      <div
+        className="relative h-full w-full motion-reduce:!transform-none"
+        style={{
+          transformStyle: 'preserve-3d',
+          transform: `rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
+          transition: 'transform 0.2s ease-out',
+        }}
+      >
+        {BUILDINGS.map((b) => (
+          <div
+            key={b.id}
+            className="absolute bottom-0"
+            style={{ left: b.left, width: b.width, height: b.height, transform: `translateZ(${b.z}px)` }}
+          >
+            <div
+              className="motion-safe:animate-building-float h-full w-full rounded-t-sm bg-gradient-to-t from-amber-800 via-amber-500 to-amber-200 shadow-[0_0_30px_rgba(245,196,69,0.3)]"
+              style={{ animationDelay: `${b.delay}ms` }}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (
     <div
       className={
         size === 'lg'
           ? 'relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl shadow-lg shadow-black/40'
-          : 'relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl bg-white/10 backdrop-blur-sm'
+          : 'relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-2xl bg-white/10 backdrop-blur-sm'
       }
     >
       <img src="/logo-mark.png" alt="Tijarat Developers" className="h-full w-full object-cover" />
@@ -36,9 +80,21 @@ export function LoginPage() {
   const [password, setPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
+  const [tilt, setTilt] = React.useState({ rx: 0, ry: 0 });
 
   if (session) {
     return <Navigate to="/" replace />;
+  }
+
+  function handlePanelMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width - 0.5;
+    const py = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ rx: py * -14, ry: px * 14 });
+  }
+
+  function handlePanelMouseLeave() {
+    setTilt({ rx: 0, ry: 0 });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -54,7 +110,11 @@ export function LoginPage() {
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden bg-background font-sans">
       {/* Left brand panel */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex">
+      <div
+        className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex"
+        onMouseMove={handlePanelMouseMove}
+        onMouseLeave={handlePanelMouseLeave}
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-stone-900 to-amber-950 bg-[length:200%_200%] animate-gradient-x" />
         <div className="absolute inset-0 bg-grid-pattern opacity-20" />
 
@@ -63,13 +123,16 @@ export function LoginPage() {
         <div className="pointer-events-none absolute right-0 top-1/3 h-80 w-80 rounded-full bg-amber-500/20 mix-blend-soft-light blur-3xl animate-blob animation-delay-2000" />
         <div className="pointer-events-none absolute bottom-0 left-1/4 h-72 w-72 rounded-full bg-yellow-600/20 mix-blend-soft-light blur-3xl animate-blob animation-delay-4000" />
 
-        <div className="relative z-10 flex items-center gap-2.5 animate-fade-in-up">
+        {/* interactive 3D gold skyline — tilts toward the cursor */}
+        <GoldSkyline tilt={tilt} />
+
+        <div className="relative z-10 flex items-center gap-3.5 animate-fade-in-up">
           <BrandMark />
           <div className="flex flex-col leading-tight">
-            <span className="text-lg font-extrabold tracking-tight">
+            <span className="text-2xl font-extrabold tracking-tight">
               Tijarat <span className="text-amber-300">Developers</span>
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-amber-100/60">CRM Suite</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-100/60">CRM Suite</span>
           </div>
         </div>
 
