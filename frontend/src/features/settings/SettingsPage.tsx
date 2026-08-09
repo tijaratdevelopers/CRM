@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MetaIntegrationTab } from './MetaIntegrationTab';
+import { WhatsAppIntegrationTab } from './WhatsAppIntegrationTab';
 import {
   Table,
   TableBody,
@@ -526,6 +527,7 @@ function IntegrationsTab() {
   return (
     <div className="flex flex-col gap-4">
       <MetaIntegrationTab />
+      <WhatsAppIntegrationTab />
     </div>
   );
 }

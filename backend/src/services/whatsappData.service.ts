@@ -6,6 +6,7 @@ import { logActivity } from '../utils/activityLog';
 import { createNotification } from './notifications.service';
 import { autoAssignLead } from './assignment.service';
 import { sendWhatsAppMessage } from '../integrations/whatsapp.service';
+import { getPhoneNumberIdForProject, resolveProjectIdByPhoneNumberId } from './whatsappIntegration.service';
 import { AuthUser } from '../types';
 
 export interface WhatsappMessage {
@@ -35,13 +36,14 @@ interface ScopedLeadRow {
   whatsapp: string | null;
   assigned_staff_id: string | null;
   assigned_team_lead_id: string | null;
+  project_id: string | null;
 }
 
 /** Fetches a lead scoped to the requesting user's role; 404s (never 403s) if out of scope. */
 async function getScopedLead(user: AuthUser, leadId: string): Promise<ScopedLeadRow> {
   let query = supabaseAdmin
     .from('leads')
-    .select('id, name, whatsapp, assigned_staff_id, assigned_team_lead_id')
+    .select('id, name, whatsapp, assigned_staff_id, assigned_team_lead_id, project_id')
     .eq('id', leadId);
   query = applyLeadScope(query, user);
 
@@ -74,7 +76,8 @@ export async function sendMessageToLead(
     throw new HttpError(400, 'This lead has no WhatsApp number on file');
   }
 
-  const { waMessageId } = await sendWhatsAppMessage(lead.whatsapp, body);
+  const phoneNumberId = await getPhoneNumberIdForProject(lead.project_id);
+  const { waMessageId } = await sendWhatsAppMessage(lead.whatsapp, body, phoneNumberId ?? undefined);
 
   const message = unwrap(
     await supabaseAdmin
@@ -187,8 +190,14 @@ interface InboundLeadRow {
  * assigned staff member if there is one. Never throws — the webhook
  * controller always needs to respond 200 quickly regardless of what happens
  * here, so callers should still wrap this in a try/catch defensively.
+ *
+ * `phoneNumberId` is the Cloud API's `metadata.phone_number_id` from the
+ * webhook payload — which of the business's own WhatsApp numbers received
+ * this message — used to route a brand-new lead into the right project.
+ * Unrecognized/missing numbers fall back to Default Project (leads.project_id
+ * already defaults there — see migration_05_projects.sql).
  */
-export async function recordInboundMessage(phone: string, body: string): Promise<void> {
+export async function recordInboundMessage(phone: string, body: string, phoneNumberId?: string): Promise<void> {
   let lead = unwrap(
     await supabaseAdmin
       .from('leads')
@@ -213,6 +222,8 @@ export async function recordInboundMessage(phone: string, body: string): Promise
           .single(),
       ) as { id: string });
 
+    const projectId = phoneNumberId ? await resolveProjectIdByPhoneNumberId(phoneNumberId) : null;
+
     lead = unwrap(
       await supabaseAdmin
         .from('leads')
@@ -224,6 +235,7 @@ export async function recordInboundMessage(phone: string, body: string): Promise
           status: 'new',
           created_by: null,
           last_modified_by: null,
+          ...(projectId ? { project_id: projectId } : {}),
         })
         .select('id, assigned_staff_id, project_id')
         .single(),

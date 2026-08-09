@@ -2,6 +2,37 @@ import { Request, Response } from 'express';
 import { env } from '../config/env';
 import { HttpError } from '../middleware/auth';
 import * as whatsappDataService from '../services/whatsappData.service';
+import * as whatsappIntegrationService from '../services/whatsappIntegration.service';
+
+function requireProjectId(value: unknown): string {
+  if (!value || typeof value !== 'string') {
+    throw new HttpError(400, 'projectId is required');
+  }
+  return value;
+}
+
+/** GET /whatsapp/integration?projectId= — admin-only. */
+export async function getIntegration(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  const data = await whatsappIntegrationService.getForProject(projectId);
+  res.json(data);
+}
+
+/** POST /whatsapp/integration — admin-only. Body: { projectId, phoneNumberId, displayName? }. */
+export async function connectIntegration(req: Request, res: Response) {
+  const { projectId, phoneNumberId, displayName } = req.body ?? {};
+  if (!projectId || typeof projectId !== 'string') throw new HttpError(400, 'projectId is required');
+  if (!phoneNumberId || typeof phoneNumberId !== 'string') throw new HttpError(400, 'phoneNumberId is required');
+  const data = await whatsappIntegrationService.connectProject(projectId, phoneNumberId, displayName);
+  res.status(201).json(data);
+}
+
+/** DELETE /whatsapp/integration?projectId= — admin-only. */
+export async function disconnectIntegration(req: Request, res: Response) {
+  const projectId = requireProjectId(req.query.projectId);
+  await whatsappIntegrationService.disconnectProject(projectId);
+  res.status(204).send();
+}
 
 /** GET /webhook — Meta/WhatsApp verification handshake. Not behind requireAuth. */
 export function verifyWebhook(req: Request, res: Response) {
@@ -24,12 +55,14 @@ export function verifyWebhook(req: Request, res: Response) {
  */
 export async function receiveWebhook(req: Request, res: Response) {
   try {
-    const message = req.body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
+    const value = req.body?.entry?.[0]?.changes?.[0]?.value;
+    const message = value?.messages?.[0];
     const from: string | undefined = message?.from ?? req.body?.from;
     const body: string | undefined = message?.text?.body ?? req.body?.body;
+    const phoneNumberId: string | undefined = value?.metadata?.phone_number_id ?? req.body?.phoneNumberId;
 
     if (from && body) {
-      await whatsappDataService.recordInboundMessage(from, body);
+      await whatsappDataService.recordInboundMessage(from, body, phoneNumberId);
     }
   } catch (err) {
     console.error('Failed to process WhatsApp webhook payload', err);

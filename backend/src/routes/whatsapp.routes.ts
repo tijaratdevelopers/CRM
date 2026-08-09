@@ -18,3 +18,8 @@ whatsappRouter.post(
 );
 whatsappRouter.get('/messages/:leadId', requireAuth, whatsappController.listMessages);
 whatsappRouter.post('/messages/:leadId/send', requireAuth, whatsappController.sendMessage);
+
+const adminOnly = [requireAuth, requireRole('admin')] as const;
+whatsappRouter.get('/integration', ...adminOnly, whatsappController.getIntegration);
+whatsappRouter.post('/integration', ...adminOnly, whatsappController.connectIntegration);
+whatsappRouter.delete('/integration', ...adminOnly, whatsappController.disconnectIntegration);

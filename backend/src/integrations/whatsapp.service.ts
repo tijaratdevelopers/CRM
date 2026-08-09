@@ -3,18 +3,21 @@ import { HttpError } from '../middleware/auth';
 
 const GRAPH_API_VERSION = 'v20.0';
 
-function assertConfigured(): void {
-  if (!env.whatsapp.phoneNumberId || !env.whatsapp.accessToken) {
+function assertConfigured(phoneNumberId: string | undefined): void {
+  if (!phoneNumberId || !env.whatsapp.accessToken) {
     throw new HttpError(
       500,
-      'WhatsApp is not configured yet — set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN in backend/.env',
+      'WhatsApp is not configured yet — connect a phone number for this project in Settings > Integrations, or set WHATSAPP_PHONE_NUMBER_ID/WHATSAPP_ACCESS_TOKEN in backend/.env',
     );
   }
 }
 
 /** POSTs a payload to the WhatsApp Cloud API's /messages endpoint and returns the wamid, or throws with Meta's own error message. */
-async function postToGraphMessagesEndpoint(payload: Record<string, unknown>): Promise<{ waMessageId: string }> {
-  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${env.whatsapp.phoneNumberId}/messages`;
+async function postToGraphMessagesEndpoint(
+  payload: Record<string, unknown>,
+  phoneNumberId: string,
+): Promise<{ waMessageId: string }> {
+  const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${phoneNumberId}/messages`;
 
   const response = await fetch(url, {
     method: 'POST',
@@ -40,14 +43,21 @@ async function postToGraphMessagesEndpoint(payload: Record<string, unknown>): Pr
   return { waMessageId };
 }
 
-/** Sends a free-form text message. Only works within Meta's 24h customer-service window. */
-export async function sendWhatsAppMessage(to: string, body: string): Promise<{ waMessageId: string }> {
-  assertConfigured();
-  return postToGraphMessagesEndpoint({
-    to,
-    type: 'text',
-    text: { body },
-  });
+/**
+ * Sends a free-form text message. Only works within Meta's 24h customer-service
+ * window. `phoneNumberId` is the project's own WhatsApp number (see
+ * whatsappIntegration.service.ts) — falls back to the single global
+ * WHATSAPP_PHONE_NUMBER_ID env var for setups that haven't configured
+ * per-project numbers yet.
+ */
+export async function sendWhatsAppMessage(
+  to: string,
+  body: string,
+  phoneNumberId?: string,
+): Promise<{ waMessageId: string }> {
+  const resolvedPhoneNumberId = phoneNumberId || env.whatsapp.phoneNumberId;
+  assertConfigured(resolvedPhoneNumberId);
+  return postToGraphMessagesEndpoint({ to, type: 'text', text: { body } }, resolvedPhoneNumberId!);
 }
 
 /** Sends a pre-approved template message — required to start a conversation outside the 24h window. */
@@ -55,18 +65,23 @@ export async function sendTemplateMessage(
   to: string,
   templateName: string,
   variables: string[],
+  phoneNumberId?: string,
 ): Promise<{ waMessageId: string }> {
-  assertConfigured();
-  return postToGraphMessagesEndpoint({
-    to,
-    type: 'template',
-    template: {
-      name: templateName,
-      language: { code: 'en_US' },
-      components:
-        variables.length > 0
-          ? [{ type: 'body', parameters: variables.map((text) => ({ type: 'text', text })) }]
-          : undefined,
+  const resolvedPhoneNumberId = phoneNumberId || env.whatsapp.phoneNumberId;
+  assertConfigured(resolvedPhoneNumberId);
+  return postToGraphMessagesEndpoint(
+    {
+      to,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: 'en_US' },
+        components:
+          variables.length > 0
+            ? [{ type: 'body', parameters: variables.map((text) => ({ type: 'text', text })) }]
+            : undefined,
+      },
     },
-  });
+    resolvedPhoneNumberId!,
+  );
 }
