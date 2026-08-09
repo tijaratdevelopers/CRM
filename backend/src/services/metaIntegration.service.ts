@@ -828,6 +828,12 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
       status: 'new',
       priority: 'medium',
       notes: buildLeadNotes(details),
+      // Use the actual Facebook submission time when we have it (always
+      // true for the webhook; the polling fallback can be backfilling
+      // leads from days ago) so the Leads list sorts by when someone
+      // actually submitted the form, not by whichever order we happened
+      // to process a backfill batch in.
+      created_at: details.createdTime ?? new Date().toISOString(),
       created_by: null,
       last_modified_by: null,
       project_id: target.projectId,

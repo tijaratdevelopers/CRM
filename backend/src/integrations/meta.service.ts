@@ -45,6 +45,8 @@ export interface MetaLeadDetails {
   adSetId?: string;
   campaignId?: string;
   formId?: string;
+  /** When the person actually submitted the form on Facebook/Instagram (ISO string) — used as the lead's created_at so bulk-backfilled leads sort correctly. */
+  createdTime?: string;
   raw: Record<string, unknown>;
 }
 
@@ -72,7 +74,7 @@ export async function fetchLeadDetailsFromMeta(
     return { leadgenId, raw: {} };
   }
 
-  const fields = 'field_data,ad_id,adset_id,campaign_id,form_id';
+  const fields = 'field_data,ad_id,adset_id,campaign_id,form_id,created_time';
   const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${leadgenId}?fields=${fields}&access_token=${token}`;
   const response = await fetch(url);
   const data: any = await response.json().catch(() => ({}));
@@ -95,6 +97,7 @@ export async function fetchLeadDetailsFromMeta(
     adSetId: data.adset_id ?? undefined,
     campaignId: data.campaign_id ?? undefined,
     formId: data.form_id ?? undefined,
+    createdTime: data.created_time ?? undefined,
     raw: data,
   };
 }
