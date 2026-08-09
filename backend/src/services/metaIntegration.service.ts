@@ -809,8 +809,13 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
 
   // Meta can redeliver the same event on retry (and the poller re-checks
   // recent leads every run) — skip if we already recorded this leadgen_id.
-  const existing = await supabaseAdmin.from('leads').select('id').ilike('notes', `%leadgen_id: ${leadgenId}%`).maybeSingle();
-  if (existing.data) return false;
+  // Uses .limit(1) instead of .maybeSingle(): the latter throws once more
+  // than one row matches, and a swallowed error here previously looked
+  // identical to "not found", letting the same lead re-insert forever.
+  // The unique index on meta_leadgen_id (migration_09) is the real
+  // guarantee — this is just a cheap pre-check to skip the API calls below.
+  const existing = await supabaseAdmin.from('leads').select('id').eq('meta_leadgen_id', leadgenId).limit(1);
+  if (existing.data && existing.data.length > 0) return false;
 
   const details = await fetchLeadDetailsFromMeta(leadgenId, target.pageAccessToken);
 
@@ -839,6 +844,7 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
       project_id: target.projectId,
       meta_page_id: target.pageRowId,
       meta_form_id: target.formRowId,
+      meta_leadgen_id: leadgenId,
       meta_campaign_ref: details.campaignId ?? null,
       meta_ad_set_ref: details.adSetId ?? null,
       meta_ad_ref: details.adId ?? null,
@@ -847,6 +853,10 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
     .single();
 
   if (error) {
+    // 23505 = unique violation on meta_leadgen_id — someone else (a
+    // concurrent poll/webhook) inserted this exact lead a moment ago.
+    // Not an error, just a race we lost; nothing left to do.
+    if (error.code === '23505') return false;
     console.error('Failed to insert Meta lead', leadgenId, error);
     return false;
   }
