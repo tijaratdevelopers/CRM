@@ -770,6 +770,35 @@ export async function touchLastSynced(projectId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
+ * The Page-level check (below) only proves the Page opted into notifying
+ * this app. Delivery also requires the app-level webhook subscription
+ * (object: 'page', a separate registration from the page's own opt-in) to
+ * still be active with the right callback URL — this can silently drift
+ * from what registerAppWebhook() last set without breaking the page-level
+ * check, so verify it independently using the app access token (never
+ * exposed to the client — this runs server-side only).
+ */
+async function checkAppWebhookSubscription(): Promise<{
+  active: boolean;
+  callbackUrl?: string;
+  fields?: string[];
+  error?: string;
+}> {
+  try {
+    const data = await graphRequest<{
+      data?: { object: string; callback_url: string; active: boolean; fields: string[] }[];
+    }>('GET', `/${env.meta.appId}/subscriptions`, {
+      access_token: `${env.meta.appId}|${env.meta.appSecret}`,
+    });
+    const pageSub = (data.data ?? []).find((s) => s.object === 'page');
+    if (!pageSub) return { active: false, error: 'No "page" object subscription registered at the app level' };
+    return { active: pageSub.active, callbackUrl: pageSub.callback_url, fields: pageSub.fields ?? [] };
+  } catch (err) {
+    return { active: false, error: err instanceof HttpError ? err.message : 'Check failed' };
+  }
+}
+
+/**
  * Asks Facebook directly (using our own stored page token, not a manually
  * pasted Graph Explorer token) whether this app is actually subscribed to
  * the page's leadgen field — ground truth for "why aren't leads arriving?"
@@ -800,6 +829,10 @@ export async function getStatus(projectId: string) {
   const state = connectionState(row);
 
   const pageWebhookSubscription = row && state === 'connected' ? await checkPageWebhookSubscription(row) : null;
+  const appWebhookSubscription =
+    row && state === 'connected' && env.meta.appId && env.meta.appSecret
+      ? await checkAppWebhookSubscription()
+      : null;
 
   return {
     status: state,
@@ -817,6 +850,7 @@ export async function getStatus(projectId: string) {
       verifyToken: env.meta.verifyToken,
       appSecretConfigured: Boolean(env.meta.appSecret),
       pageWebhookSubscription,
+      appWebhookSubscription,
     },
   };
 }

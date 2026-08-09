@@ -52,6 +52,7 @@ interface MetaStatus {
     verifyToken: string;
     appSecretConfigured: boolean;
     pageWebhookSubscription: { subscribed: boolean; fields: string[]; error?: string } | null;
+    appWebhookSubscription: { active: boolean; callbackUrl?: string; fields?: string[]; error?: string } | null;
   };
 }
 
@@ -796,6 +797,22 @@ function DeveloperSection({ status }: { status: MetaStatus }) {
             )
           ) : (
             <p className="mt-1 text-muted-foreground">Not checked (no page connected yet).</p>
+          )}
+        </div>
+        <div className="rounded-lg border bg-background p-3 text-xs">
+          <p className="font-medium text-foreground">Live check — is the app-level webhook active?</p>
+          {status.developer.appWebhookSubscription ? (
+            status.developer.appWebhookSubscription.error ? (
+              <p className="mt-1 text-destructive">Error: {status.developer.appWebhookSubscription.error}</p>
+            ) : (
+              <p className="mt-1 text-muted-foreground">
+                Active: <strong>{status.developer.appWebhookSubscription.active ? 'yes' : 'NO'}</strong> · Callback
+                URL on file: {status.developer.appWebhookSubscription.callbackUrl ?? '—'} · Fields:{' '}
+                {status.developer.appWebhookSubscription.fields?.join(', ') || 'none'}
+              </p>
+            )
+          ) : (
+            <p className="mt-1 text-muted-foreground">Not checked.</p>
           )}
         </div>
       </div>
