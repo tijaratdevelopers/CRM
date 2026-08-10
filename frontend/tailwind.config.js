@@ -93,24 +93,6 @@ export default {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
         },
-        twinkle: {
-          '0%, 100%': { opacity: '0.15', transform: 'scale(0.8)' },
-          '50%': { opacity: '1', transform: 'scale(1.2)' },
-        },
-        shoot: {
-          '0%': { transform: 'translate(0, 0) scale(1)', opacity: '0' },
-          '6%': { opacity: '1' },
-          '28%': { transform: 'translate(150px, 85px) scale(0.3)', opacity: '0' },
-          '100%': { transform: 'translate(150px, 85px) scale(0.3)', opacity: '0' },
-        },
-        'sway-3d': {
-          '0%, 100%': { transform: 'rotateY(-7deg)' },
-          '50%': { transform: 'rotateY(7deg)' },
-        },
-        'ribbon-drift': {
-          '0%, 100%': { transform: 'translate(-2%, 0px) scaleX(1)' },
-          '50%': { transform: 'translate(2%, -8px) scaleX(1.03)' },
-        },
       },
       animation: {
         blob: 'blob 12s infinite ease-in-out',
@@ -124,10 +106,6 @@ export default {
         shine: 'shine 3.5s ease-in-out infinite',
         'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
         'building-float': 'building-float 5s ease-in-out infinite',
-        twinkle: 'twinkle 3s ease-in-out infinite',
-        shoot: 'shoot 4s ease-in infinite',
-        'sway-3d': 'sway-3d 9s ease-in-out infinite',
-        'ribbon-drift': 'ribbon-drift 14s ease-in-out infinite',
       },
     },
   },

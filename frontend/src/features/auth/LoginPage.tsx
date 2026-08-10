@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as THREE from 'three';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, Shuffle, Megaphone } from 'lucide-react';
@@ -6,6 +7,9 @@ import { useAuth } from './AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+
+const GOLD = 0xf0a500;
+const BG_COLOR = 0x1a1409;
 
 const HIGHLIGHTS = [
   { icon: Shuffle, label: 'Automatic lead distribution', desc: 'Round-robin engine shares every lead fairly across teams' },
@@ -57,135 +61,137 @@ function GoldSkyline({ tilt }: { tilt: { rx: number; ry: number } }) {
   );
 }
 
-const STARS = Array.from({ length: 40 }, (_, i) => ({
-  id: i,
-  left: (i * 53.7) % 100,
-  top: (i * 31.3) % 62,
-  size: i % 4 === 0 ? 2.5 : 1.5,
-  delay: (i * 137) % 4000,
-  duration: 2400 + ((i * 97) % 2600),
-}));
+/** The 3D scene behind the sign-in card: 3500 drifting gold particles, seven wireframe
+ * shapes (torus / icosahedron / octahedron / torus-knot) each rotating and bobbing at
+ * their own pace, and a camera that eases toward the mouse for a subtle parallax feel. */
+function ThreeLoginBackground() {
+  const mountRef = React.useRef<HTMLDivElement>(null);
 
-const SHOOTING_STARS = [
-  { id: 1, top: '10%', left: '8%', delay: 500, duration: 4500 },
-  { id: 2, top: '24%', left: '52%', delay: 2600, duration: 5200 },
-];
+  React.useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
 
-const MOBILE_BUILDINGS = [
-  { id: 1, left: 2, width: 22, height: 60, z: -40, delay: 0 },
-  { id: 2, left: 9, width: 30, height: 105, z: 0, delay: 300 },
-  { id: 3, left: 19, width: 18, height: 50, z: -20, delay: 600 },
-  { id: 4, left: 26, width: 34, height: 135, z: 30, delay: 150 },
-  { id: 5, left: 39, width: 24, height: 78, z: 10, delay: 450 },
-  { id: 6, left: 49, width: 28, height: 115, z: 50, delay: 750 },
-  { id: 7, left: 61, width: 20, height: 65, z: -10, delay: 250 },
-  { id: 8, left: 70, width: 32, height: 125, z: 40, delay: 550 },
-  { id: 9, left: 83, width: 22, height: 75, z: 0, delay: 850 },
-  { id: 10, left: 91, width: 18, height: 52, z: -30, delay: 100 },
-];
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-/** A slow-drifting ribbon of gold light, like an aurora — the signature glow effect
- * behind the sign-in card, echoing flowing light-wave backgrounds. Layered blurred
- * gradient streaks, each tilted and offset, animated together as one group. */
-function AuroraRibbon({ className }: { className?: string }) {
-  return (
-    <div
-      className={`pointer-events-none absolute motion-safe:animate-ribbon-drift motion-reduce:!transform-none ${className ?? ''}`}
-      aria-hidden="true"
-    >
-      <div className="absolute left-[-15%] top-[20%] h-16 w-[130%] -rotate-6 rounded-full bg-gradient-to-r from-transparent via-orange-500/35 to-transparent blur-3xl" />
-      <div className="absolute left-[-15%] top-[48%] h-12 w-[130%] rotate-3 rounded-full bg-gradient-to-r from-transparent via-amber-400/50 to-transparent blur-2xl" />
-      <div className="absolute left-[-15%] top-[70%] h-8 w-[130%] -rotate-2 rounded-full bg-gradient-to-r from-transparent via-amber-200/40 to-transparent blur-xl" />
-    </div>
-  );
-}
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_COLOR);
 
-/** Night skyline scene shown behind the sign-in card on small screens, where the
- * desktop brand panel is hidden — a starfield + glowing gold moon + 3D gold skyline. */
-function MobileNightScene() {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden lg:hidden" aria-hidden="true">
-      <div className="absolute inset-0 bg-gradient-to-b from-neutral-950 via-stone-950 to-amber-950/50" />
-      <div className="absolute inset-0 bg-grid-pattern opacity-[0.04]" />
+    const camera = new THREE.PerspectiveCamera(60, mount.clientWidth / mount.clientHeight, 0.1, 1000);
+    camera.position.z = 34;
 
-      {/* glowing moon */}
-      <div className="absolute -top-10 right-6 h-40 w-40 rounded-full bg-amber-300/20 blur-3xl" />
-      <div className="absolute top-8 right-12 h-14 w-14 rounded-full bg-gradient-to-br from-amber-100 via-amber-300 to-amber-500 shadow-[0_0_60px_18px_rgba(245,196,69,0.25)]" />
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    mount.appendChild(renderer.domElement);
 
-      {/* aurora ribbon */}
-      <AuroraRibbon className="inset-x-0 top-[36%] h-40 w-full opacity-80" />
+    const particleCount = 3500;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 90;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+      color: GOLD,
+      size: 0.16,
+      transparent: true,
+      opacity: 0.75,
+      sizeAttenuation: true,
+    });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
 
-      {/* starfield */}
-      {STARS.map((s) => (
-        <span
-          key={s.id}
-          className="absolute rounded-full bg-amber-100 motion-safe:animate-twinkle"
-          style={{
-            left: `${s.left}%`,
-            top: `${s.top}%`,
-            width: s.size,
-            height: s.size,
-            animationDelay: `${s.delay}ms`,
-            animationDuration: `${s.duration}ms`,
-          }}
-        />
-      ))}
+    const geometries: THREE.BufferGeometry[] = [
+      new THREE.TorusGeometry(4, 1.2, 10, 40),
+      new THREE.IcosahedronGeometry(3.2, 0),
+      new THREE.OctahedronGeometry(3.6, 0),
+      new THREE.TorusKnotGeometry(2.4, 0.75, 100, 16),
+      new THREE.TorusGeometry(3, 0.9, 8, 30),
+      new THREE.IcosahedronGeometry(2.4, 0),
+      new THREE.OctahedronGeometry(2.8, 0),
+    ];
 
-      {/* shooting stars */}
-      {SHOOTING_STARS.map((s) => (
-        <span
-          key={s.id}
-          className="absolute h-px w-24 -rotate-[28deg] bg-gradient-to-r from-transparent via-amber-200 to-transparent motion-safe:animate-shoot"
-          style={{ top: s.top, left: s.left, animationDelay: `${s.delay}ms`, animationDuration: `${s.duration}ms` }}
-        />
-      ))}
+    const shapes = geometries.map((geometry, i) => {
+      const material = new THREE.MeshBasicMaterial({ color: GOLD, wireframe: true, transparent: true, opacity: 0.25 });
+      const mesh = new THREE.Mesh(geometry, material);
+      const angle = (i / geometries.length) * Math.PI * 2;
+      const radius = 15 + (i % 3) * 6;
+      mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.6, (i - geometries.length / 2) * 4);
+      scene.add(mesh);
+      return {
+        mesh,
+        rotSpeedX: 0.002 + Math.random() * 0.006,
+        rotSpeedY: 0.002 + Math.random() * 0.006,
+        bobSpeed: 0.4 + Math.random() * 0.6,
+        bobAmount: 1 + Math.random() * 1.5,
+        baseY: mesh.position.y,
+        phase: Math.random() * Math.PI * 2,
+      };
+    });
 
-      {/* 3D gold skyline */}
-      <div className="absolute inset-x-0 bottom-0 h-52 sm:h-64" style={{ perspective: '1200px' }}>
-        <div
-          className="relative h-full w-full motion-safe:animate-sway-3d motion-reduce:!transform-none"
-          style={{ transformStyle: 'preserve-3d' }}
-        >
-          {MOBILE_BUILDINGS.map((b) => (
-            <div
-              key={b.id}
-              className="absolute bottom-0"
-              style={{ left: `${b.left}%`, width: b.width, height: b.height, transform: `translateZ(${b.z}px)` }}
-            >
-              <div
-                className="motion-safe:animate-building-float h-full w-full rounded-t-sm bg-gradient-to-t from-amber-900 via-amber-500 to-amber-200 shadow-[0_0_24px_rgba(245,196,69,0.25)]"
-                style={{ animationDelay: `${b.delay}ms` }}
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+    let targetX = 0;
+    let targetY = 0;
+    function handleMouseMove(e: MouseEvent) {
+      const rect = mount!.getBoundingClientRect();
+      targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    }
+    mount.addEventListener('mousemove', handleMouseMove);
 
-const GLOW_SPARKLES = [
-  { id: 1, left: '78%', top: '14%', size: 3, delay: 300 },
-  { id: 2, left: '85%', top: '20%', size: 2, delay: 1200 },
-  { id: 3, left: '15%', top: '72%', size: 2.5, delay: 2000 },
-  { id: 4, left: '10%', top: '18%', size: 1.5, delay: 800 },
-];
+    function handleResize() {
+      if (!mount) return;
+      camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+    }
+    window.addEventListener('resize', handleResize);
 
-/** Subtle aurora glow behind the sign-in card on wide screens, where the form panel
- * otherwise sits on flat background — keeps the desktop view from feeling bare. */
-function DesktopFormGlow() {
-  return (
-    <div className="pointer-events-none absolute inset-0 hidden overflow-hidden lg:block" aria-hidden="true">
-      <AuroraRibbon className="inset-x-0 top-1/3 h-64 w-full opacity-60" />
-      {GLOW_SPARKLES.map((s) => (
-        <span
-          key={s.id}
-          className="absolute rounded-full bg-amber-200 motion-safe:animate-twinkle"
-          style={{ left: s.left, top: s.top, width: s.size, height: s.size, animationDelay: `${s.delay}ms` }}
-        />
-      ))}
-    </div>
-  );
+    const clock = new THREE.Clock();
+    let frameId: number;
+
+    function animate() {
+      frameId = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      if (!prefersReducedMotion) {
+        particles.rotation.y += 0.0006;
+        particles.rotation.x += 0.0002;
+
+        for (const s of shapes) {
+          s.mesh.rotation.x += s.rotSpeedX;
+          s.mesh.rotation.y += s.rotSpeedY;
+          s.mesh.position.y = s.baseY + Math.sin(elapsed * s.bobSpeed + s.phase) * s.bobAmount;
+        }
+      }
+
+      camera.position.x += (targetX * 6 - camera.position.x) * 0.03;
+      camera.position.y += (-targetY * 4 - camera.position.y) * 0.03;
+      camera.lookAt(scene.position);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+      mount.removeEventListener('mousemove', handleMouseMove);
+      particleGeometry.dispose();
+      particleMaterial.dispose();
+      for (const s of shapes) {
+        s.mesh.geometry.dispose();
+        (s.mesh.material as THREE.Material).dispose();
+      }
+      renderer.dispose();
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement);
+      }
+    };
+  }, []);
+
+  return <div ref={mountRef} className="pointer-events-none absolute inset-0" aria-hidden="true" />;
 }
 
 function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
@@ -304,62 +310,71 @@ export function LoginPage() {
         </p>
       </div>
 
-      {/* Right form panel */}
-      <div className="relative flex w-full flex-1 items-center justify-center px-6 py-12 lg:w-1/2">
-        <MobileNightScene />
-        <DesktopFormGlow />
+      {/* Right form panel — 3D animated background per spec */}
+      <div
+        className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2"
+        style={{ background: `#${BG_COLOR.toString(16)}` }}
+      >
+        <ThreeLoginBackground />
 
-        <div className="relative z-10 w-full max-w-sm animate-fade-in-up">
-          <div className="mb-8 flex flex-col items-center text-center lg:items-start lg:text-left">
-            <div className="mb-4 lg:hidden">
-              <BrandMark size="lg" />
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground">
-              Welcome to <span className="text-gradient-brand">Tijarat Developers CRM</span>
-            </h2>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Sign in with the account your administrator created for you.
-            </p>
+        <div className="relative z-10 flex w-full max-w-sm flex-col items-center text-center animate-fade-in-up">
+          <div className="mb-4 lg:hidden">
+            <BrandMark size="lg" />
           </div>
+          <h2 className="text-3xl font-extrabold leading-tight tracking-tight">
+            <span className="text-white">Welcome to </span>
+            <span style={{ color: '#f0a500' }}>Tijarat Developers CRM</span>
+          </h2>
+          <p className="mt-2 text-sm text-gray-400">
+            Sign in with the account your administrator created for you.
+          </p>
 
-          <div className="rounded-2xl border bg-card p-6 shadow-xl shadow-primary/5 sm:p-8">
+          <div
+            className="mt-8 w-full rounded-[18px] p-6 text-left backdrop-blur-md sm:p-8"
+            style={{
+              background: 'rgba(38, 28, 15, 0.55)',
+              boxShadow: '0 0 0 1px rgba(240,165,0,0.3), 0 0 45px rgba(240,165,0,0.12), 0 20px 60px rgba(0,0,0,0.5)',
+            }}
+          >
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-gray-200">
+                  Email
+                </Label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a8064]" />
                   <Input
                     id="email"
                     type="email"
                     autoComplete="email"
                     required
                     placeholder="you@company.com"
-                    className="pl-9"
+                    className="border-transparent bg-[#eef1ff] pl-9 text-[#1a1409] placeholder:text-[#8a8064] focus-visible:border-[#f0a500] focus-visible:ring-2 focus-visible:ring-[#f0a500]"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password" className="text-gray-200">
+                  Password
+                </Label>
                 <div className="relative">
-                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8a8064]" />
                   <Input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     required
                     placeholder="••••••••"
-                    className="pl-9 pr-9"
+                    className="border-transparent bg-[#eef1ff] pl-9 pr-9 text-[#1a1409] placeholder:text-[#8a8064] focus-visible:border-[#f0a500] focus-visible:ring-2 focus-visible:ring-[#f0a500]"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8a8064] hover:text-[#1a1409]"
                     tabIndex={-1}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -369,14 +384,18 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="relative w-full overflow-hidden bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-500 bg-[length:200%_200%] text-black shadow-lg shadow-amber-600/25 transition-all hover:shadow-amber-600/40 hover:brightness-110 animate-gradient-x"
+                className="w-full text-black shadow-lg transition-transform hover:-translate-y-0.5"
+                style={{
+                  background: 'linear-gradient(135deg, #f0a500, #ffcf5c)',
+                  boxShadow: '0 10px 30px rgba(240,165,0,0.35)',
+                }}
               >
                 {submitting ? 'Signing in…' : 'Sign in'}
               </Button>
             </form>
           </div>
 
-          <p className="mt-6 text-center text-xs text-muted-foreground lg:text-left">
+          <p className="mt-6 text-center text-xs text-gray-400">
             Protected workspace — access is granted only by your organization's administrator.
           </p>
         </div>
