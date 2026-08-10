@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
-import { navItems } from './navConfig';
+import { navItems, type NavItem } from './navConfig';
 import { cn } from '@/lib/utils';
 
 const COLLAPSED_KEY = 'sidebar-collapsed';
@@ -21,9 +21,28 @@ function BrandMark() {
   );
 }
 
+/**
+ * NavLink's default matching treats `to` as a path prefix (so "/leads" would
+ * stay highlighted on "/leads/in-progress" too, even though that has its own
+ * nav entry). This picks the most specific match instead: a nav item is only
+ * active if no OTHER nav item's path is a closer match for the current URL.
+ */
+function isItemActive(pathname: string, item: NavItem, allItems: NavItem[]): boolean {
+  if (item.to === '/') return pathname === '/';
+  if (pathname === item.to) return true;
+  if (!pathname.startsWith(`${item.to}/`)) return false;
+  return !allItems.some(
+    (other) =>
+      other.to !== item.to &&
+      other.to.startsWith(`${item.to}/`) &&
+      (pathname === other.to || pathname.startsWith(`${other.to}/`)),
+  );
+}
+
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [collapsed, setCollapsed] = React.useState(
     () => localStorage.getItem(COLLAPSED_KEY) === '1',
   );
@@ -67,43 +86,39 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   function renderNav(onNavigate?: () => void) {
     return (
       <nav className={cn('space-y-1', collapsed ? 'p-2' : 'p-3')}>
-        {items.map((item, i) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            title={collapsed ? item.label : undefined}
-            onClick={onNavigate}
-            className={({ isActive }) =>
-              cn(
+        {items.map((item, i) => {
+          const isActive = isItemActive(location.pathname, item, items);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              title={collapsed ? item.label : undefined}
+              onClick={onNavigate}
+              className={cn(
                 'group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200 animate-slide-in-left',
                 collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2',
                 isActive
                   ? 'bg-gradient-to-r from-amber-500/90 to-yellow-600/90 text-black shadow-md shadow-black/60'
                   : 'text-amber-50/60 hover:bg-amber-500/10 hover:text-white' +
                     (collapsed ? '' : ' hover:translate-x-0.5'),
-              )
-            }
-            style={{ animationDelay: `${i * 40}ms` }}
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && !collapsed && (
-                  <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-amber-400 shadow-[0_0_8px_rgba(245,196,69,0.8)]" />
+              )}
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              {isActive && !collapsed && (
+                <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-amber-400 shadow-[0_0_8px_rgba(245,196,69,0.8)]" />
+              )}
+              <item.icon
+                className={cn(
+                  'h-4 w-4 shrink-0 transition-transform duration-200',
+                  isActive
+                    ? 'text-black'
+                    : 'text-amber-200/50 group-hover:scale-110 group-hover:text-amber-300',
                 )}
-                <item.icon
-                  className={cn(
-                    'h-4 w-4 shrink-0 transition-transform duration-200',
-                    isActive
-                      ? 'text-black'
-                      : 'text-amber-200/50 group-hover:scale-110 group-hover:text-amber-300',
-                  )}
-                />
-                {!collapsed && <span className="truncate">{item.label}</span>}
-              </>
-            )}
-          </NavLink>
-        ))}
+              />
+              {!collapsed && <span className="truncate">{item.label}</span>}
+            </Link>
+          );
+        })}
       </nav>
     );
   }
