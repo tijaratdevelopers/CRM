@@ -66,7 +66,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   function renderNav(onNavigate?: () => void) {
     return (
-      <nav className={cn('flex-1 space-y-1 overflow-y-auto', collapsed ? 'p-2' : 'p-3')}>
+      <nav className={cn('space-y-1', collapsed ? 'p-2' : 'p-3')}>
         {items.map((item, i) => (
           <NavLink
             key={item.to}
@@ -162,8 +162,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           </button>
         </div>
         {renderNav()}
-        {renderSignOut()}
         {renderFooter()}
+        {renderSignOut()}
       </aside>
 
       {/* Mobile drawer */}
@@ -174,7 +174,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             onClick={onMobileClose}
             aria-hidden="true"
           />
-          <aside className="relative z-50 flex h-full w-64 flex-col bg-sidebar-brand text-neutral-100 shadow-xl animate-slide-in-left">
+          <aside className="relative z-50 flex h-full w-64 flex-col overflow-y-auto bg-sidebar-brand text-neutral-100 shadow-xl animate-slide-in-left">
             <div className="flex h-16 items-center gap-2.5 border-b border-amber-900/20 px-4">
               <BrandMark />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
@@ -195,8 +195,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               </button>
             </div>
             {renderNav(onMobileClose)}
-            {renderSignOut()}
             {renderFooter()}
+            {renderSignOut()}
           </aside>
         </div>
       )}
