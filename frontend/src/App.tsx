@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
+import { ThemeProvider } from '@/lib/theme';
 import { AuthProvider } from '@/features/auth/AuthContext';
 import { ProjectProvider } from '@/features/projects/ProjectContext';
 import { LoginPage } from '@/features/auth/LoginPage';
@@ -40,6 +41,7 @@ function RouteFallback() {
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <AuthProvider>
         <ProjectProvider>
         <BrowserRouter>
@@ -132,6 +134,7 @@ export default function App() {
         <Toaster richColors position="top-right" />
         </ProjectProvider>
       </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

@@ -3,24 +3,36 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-export type StatAccent = 'violet' | 'emerald' | 'amber' | 'sky' | 'rose' | 'indigo';
+export type StatTone = 'orange' | 'gray' | 'red';
 
-const ACCENT_STYLES: Record<StatAccent, { tile: string; ring: string }> = {
-  emerald: { tile: 'from-amber-500 to-yellow-700', ring: 'hover:shadow-amber-500/20' },
-  amber: { tile: 'from-amber-400 to-orange-600', ring: 'hover:shadow-amber-500/20' },
-  sky: { tile: 'from-stone-400 to-stone-600', ring: 'hover:shadow-stone-500/20' },
-  violet: { tile: 'from-yellow-600 to-amber-800', ring: 'hover:shadow-amber-600/20' },
-  indigo: { tile: 'from-neutral-500 to-neutral-800', ring: 'hover:shadow-neutral-600/20' },
-  rose: { tile: 'from-rose-500 to-red-700', ring: 'hover:shadow-rose-500/20' },
+const TONE_STYLES: Record<StatTone, { iconBg: string; barFill: string; borderHover: string }> = {
+  orange: {
+    iconBg: 'bg-[#C97B06] animate-pulse-glow-orange tone-orange',
+    barFill: 'from-[#C97B06] to-[#F59E0B]',
+    borderHover: 'hover:border-[#DA7706]/35',
+  },
+  gray: {
+    iconBg: 'bg-[#222018]',
+    barFill: 'from-[#C97B06] to-[#F59E0B]',
+    borderHover: 'hover:border-[#DA7706]/35',
+  },
+  red: {
+    iconBg: 'bg-[#C52020] animate-pulse-glow-red tone-red',
+    barFill: 'from-[#C52020] to-[#EF4444]',
+    borderHover: 'hover:border-[#C52020]/40',
+  },
 };
 
+const reduceMotionQuery =
+  typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+
 /** Animates a number from 0 to its target with an ease-out curve. */
-function useCountUp(target: number, durationMs = 900): number {
+function useCountUp(target: number, durationMs = 1100): number {
   const [display, setDisplay] = React.useState(0);
 
   React.useEffect(() => {
-    if (target === 0) {
-      setDisplay(0);
+    if (target === 0 || reduceMotionQuery?.matches) {
+      setDisplay(target);
       return;
     }
     let frame: number;
@@ -48,45 +60,89 @@ interface StatCardProps {
   label: string;
   value: string | number;
   icon?: React.ReactNode;
-  accent?: StatAccent;
+  tone?: StatTone;
   hint?: string;
   index?: number;
   /** Route to open when the card is clicked (e.g. '/leads'). */
   to?: string;
+  /** Largest value among this dashboard's cards — sizes the bottom progress bar. */
+  maxValue?: number;
 }
 
-export function StatCard({ label, value, icon, accent = 'emerald', hint, index = 0, to }: StatCardProps) {
-  const styles = ACCENT_STYLES[accent];
+export function StatCard({ label, value, icon, tone = 'orange', hint, index = 0, to, maxValue = 1 }: StatCardProps) {
+  const styles = TONE_STYLES[tone];
   const navigate = useNavigate();
+  const cardRef = React.useRef<HTMLDivElement>(null);
+  const [barPct, setBarPct] = React.useState(0);
+
+  React.useEffect(() => {
+    if (typeof value !== 'number') return;
+    const pct = Math.max(0, Math.min(100, (value / Math.max(maxValue, 1)) * 100));
+    const timer = setTimeout(() => setBarPct(pct), 300 + index * 50);
+    return () => clearTimeout(timer);
+  }, [value, maxValue, index]);
+
+  function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
+    const card = cardRef.current;
+    if (!card || reduceMotionQuery?.matches) return;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const rotY = (x / rect.width - 0.5) * 12;
+    const rotX = (0.5 - y / rect.height) * 12;
+    card.style.transition = 'border-color .3s ease, box-shadow .3s ease';
+    card.style.transform = `perspective(800px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) scale3d(1.02,1.02,1.02)`;
+    card.style.setProperty('--mx', `${x}px`);
+    card.style.setProperty('--my', `${y}px`);
+  }
+
+  function handleMouseLeave() {
+    const card = cardRef.current;
+    if (!card) return;
+    card.style.transition = 'transform .45s cubic-bezier(.22,1,.36,1), border-color .3s ease, box-shadow .3s ease';
+    card.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg) scale3d(1,1,1)';
+  }
+
   return (
     <Card
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
       className={cn(
-        'group animate-fade-in-up border-transparent shadow-sm shadow-black/[0.03] transition-all duration-300 hover:-translate-y-1 hover:shadow-xl',
-        styles.ring,
+        'group stat-tilt animate-fade-in-up rounded-[15px] border-border/80 shadow-sm shadow-black/[0.03] transition-[border-color,box-shadow] duration-300 hover:shadow-[0_18px_42px_rgba(0,0,0,0.14)] dark:hover:shadow-[0_18px_42px_rgba(0,0,0,0.55)]',
+        styles.borderHover,
+        tone === 'red' && 'is-red',
         to && 'cursor-pointer active:scale-[0.98]',
       )}
-      style={{ animationDelay: `${index * 60}ms` }}
+      style={{ animationDelay: `${index * 45}ms` }}
       onClick={to ? () => navigate(to) : undefined}
       role={to ? 'link' : undefined}
     >
-      <CardContent className="flex items-start justify-between p-4">
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground">
-            <AnimatedValue value={value} />
-          </p>
-          {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-        </div>
+      <CardContent className="stat-tilt-body flex flex-col p-[18px] pb-[14px]">
         {icon && (
           <div
             className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-md transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3',
-              styles.tile,
+              'stat-icon-3d mb-3.5 flex h-[42px] w-[42px] items-center justify-center rounded-[11px] text-white shadow-md',
+              styles.iconBg,
             )}
           >
             {icon}
           </div>
         )}
+        <p className="max-w-[100px] text-[11.5px] leading-snug text-muted-foreground">{label}</p>
+        <p className="mt-[9px] text-[34px] font-bold leading-none tracking-[-1.8px] tabular-nums text-foreground">
+          <AnimatedValue value={value} />
+        </p>
+        {hint && <p className="mt-1 text-[11px] text-muted-foreground">{hint}</p>}
+        <div className="mt-[14px] h-[2px] overflow-hidden rounded-full bg-foreground/10">
+          <div
+            className={cn(
+              'h-full rounded-full bg-gradient-to-r transition-[width] duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+              styles.barFill,
+            )}
+            style={{ width: `${barPct}%` }}
+          />
+        </div>
       </CardContent>
     </Card>
   );

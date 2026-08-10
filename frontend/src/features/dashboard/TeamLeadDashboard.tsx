@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { UsersRound, UserCog, Contact, BellRing, CalendarClock, TrendingUp, TrendingDown, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
-import { StatCard, type StatAccent } from '@/features/dashboard/StatCard';
+import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
 
@@ -29,15 +29,17 @@ export function TeamLeadDashboard() {
     queryFn: fetchTeamLeadSummary,
   });
 
-  const stats: { label: string; value: number | string; icon: ReactNode; accent: StatAccent; to: string }[] = [
-    { label: 'Assigned Staff', value: data?.assigned_staff ?? '—', icon: <UserCog className="h-5 w-5" />, accent: 'emerald', to: '/staff' },
-    { label: 'Assigned Leads', value: data?.assigned_leads ?? '—', icon: <Contact className="h-5 w-5" />, accent: 'sky', to: '/leads' },
-    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, accent: 'amber', to: '/follow-ups' },
-    { label: "Today's Meetings", value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, accent: 'violet', to: '/meetings' },
-    { label: 'In Progress Leads', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, accent: 'amber', to: '/leads/in-progress' },
-    { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, accent: 'emerald', to: '/leads' },
-    { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, accent: 'rose', to: '/leads' },
+  const stats: { label: string; value: number | string; icon: ReactNode; tone: StatTone; to: string }[] = [
+    { label: 'Assigned Staff', value: data?.assigned_staff ?? '—', icon: <UserCog className="h-5 w-5" />, tone: 'gray', to: '/staff' },
+    { label: 'Assigned Leads', value: data?.assigned_leads ?? '—', icon: <Contact className="h-5 w-5" />, tone: 'orange', to: '/leads' },
+    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, tone: 'orange', to: '/follow-ups' },
+    { label: "Today's Meetings", value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, tone: 'gray', to: '/meetings' },
+    { label: 'In Progress Leads', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, tone: 'orange', to: '/leads/in-progress' },
+    { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, tone: 'orange', to: '/leads' },
+    { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, tone: 'red', to: '/leads' },
   ];
+
+  const maxValue = Math.max(1, ...stats.map((s) => (typeof s.value === 'number' ? s.value : 0)));
 
   return (
     <div className="flex flex-col gap-6">
@@ -58,7 +60,7 @@ export function TeamLeadDashboard() {
       ) : (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
           {stats.map((stat, i) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} accent={stat.accent} index={i} to={stat.to} />
+            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} tone={stat.tone} index={i} to={stat.to} maxValue={maxValue} />
           ))}
         </div>
       )}
