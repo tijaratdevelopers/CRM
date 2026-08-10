@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { getSocket } from '@/lib/socket';
 import type { Notification } from '@/types';
@@ -28,13 +29,29 @@ export function useNotifications() {
   }, [queryClient]);
 
   async function markRead(id: string) {
-    await apiClient.patch(`/notifications/${id}/read`);
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.setQueryData<Notification[]>(['notifications'], (prev) =>
+      prev?.map((n) => (n.id === id ? { ...n, is_read: true } : n)),
+    );
+    try {
+      await apiClient.patch(`/notifications/${id}/read`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark notification as read');
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }
   }
 
   async function markAllRead() {
-    await apiClient.patch('/notifications/read-all');
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    queryClient.setQueryData<Notification[]>(['notifications'], (prev) =>
+      prev?.map((n) => ({ ...n, is_read: true })),
+    );
+    try {
+      await apiClient.patch('/notifications/read-all');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to mark all notifications as read');
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    }
   }
 
   const unreadCount = (query.data ?? []).filter((n) => !n.is_read).length;

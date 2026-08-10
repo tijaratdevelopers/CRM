@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
@@ -303,7 +304,9 @@ function ChatPanel({ leadId, leadName }: { leadId: string; leadName: string }) {
 }
 
 export function WhatsAppPage() {
-  const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const leadIdFromUrl = searchParams.get('leadId');
+  const [selectedLeadId, setSelectedLeadId] = React.useState<string | null>(leadIdFromUrl);
 
   const { data: conversations, isLoading } = useQuery({
     queryKey: ['whatsapp-conversations'],
@@ -312,6 +315,10 @@ export function WhatsAppPage() {
       return data;
     },
   });
+
+  React.useEffect(() => {
+    if (leadIdFromUrl) setSelectedLeadId(leadIdFromUrl);
+  }, [leadIdFromUrl]);
 
   const selectedConversation = conversations?.find((c) => c.leadId === selectedLeadId);
 

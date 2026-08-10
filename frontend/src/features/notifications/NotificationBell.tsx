@@ -1,5 +1,6 @@
 import { formatDistanceToNow } from 'date-fns';
 import { Bell } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,9 +12,39 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useNotifications } from './useNotifications';
+import type { Notification } from '@/types';
+
+function resolveNotificationLink(notification: Notification): string | null {
+  const payload = notification.payload ?? {};
+  const leadId = payload.leadId as string | undefined;
+
+  switch (notification.type) {
+    case 'lead_assigned':
+    case 'lead_status_updated':
+    case 'lead_new_unassigned':
+      return leadId ? `/leads/${leadId}` : null;
+    case 'whatsapp_message':
+      return leadId ? `/whatsapp?leadId=${leadId}` : null;
+    case 'meeting_reminder':
+      return '/meetings';
+    case 'follow_up_reminder':
+      return '/follow-ups';
+    case 'task_assigned':
+      return '/tasks';
+    default:
+      return null;
+  }
+}
 
 export function NotificationBell() {
   const { data: notifications, unreadCount, markRead, markAllRead } = useNotifications();
+  const navigate = useNavigate();
+
+  function handleNotificationClick(notification: Notification) {
+    if (!notification.is_read) markRead(notification.id);
+    const link = resolveNotificationLink(notification);
+    if (link) navigate(link);
+  }
 
   return (
     <DropdownMenu>
@@ -31,7 +62,15 @@ export function NotificationBell() {
         <div className="flex items-center justify-between px-2 py-1.5">
           <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
           {unreadCount > 0 && (
-            <button className="text-xs text-primary hover:underline" onClick={() => markAllRead()}>
+            <button
+              type="button"
+              className="text-xs text-primary hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                markAllRead();
+              }}
+            >
               Mark all read
             </button>
           )}
@@ -45,7 +84,7 @@ export function NotificationBell() {
             <DropdownMenuItem
               key={n.id}
               className="flex flex-col items-start gap-0.5 whitespace-normal"
-              onClick={() => !n.is_read && markRead(n.id)}
+              onClick={() => handleNotificationClick(n)}
             >
               <div className="flex w-full items-center justify-between gap-2">
                 <span className={n.is_read ? 'font-normal' : 'font-semibold'}>{n.title}</span>
