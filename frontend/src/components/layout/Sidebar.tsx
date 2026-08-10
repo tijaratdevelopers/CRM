@@ -128,7 +128,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       {/* Desktop sidebar */}
       <aside
         className={cn(
-          'hidden shrink-0 transition-[width] duration-300 md:flex md:flex-col bg-sidebar-brand text-neutral-100',
+          'sticky top-0 hidden h-screen shrink-0 overflow-y-auto transition-[width] duration-300 md:flex md:flex-col bg-sidebar-brand text-neutral-100',
           collapsed ? 'w-[68px]' : 'w-64',
         )}
       >
@@ -162,8 +162,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           </button>
         </div>
         {renderNav()}
-        {renderFooter()}
         {renderSignOut()}
+        {renderFooter()}
       </aside>
 
       {/* Mobile drawer */}
@@ -195,8 +195,8 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               </button>
             </div>
             {renderNav(onMobileClose)}
-            {renderFooter()}
             {renderSignOut()}
+            {renderFooter()}
           </aside>
         </div>
       )}
