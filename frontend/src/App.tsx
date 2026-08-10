@@ -7,6 +7,7 @@ import { queryClient } from '@/lib/queryClient';
 import { AuthProvider } from '@/features/auth/AuthContext';
 import { ProjectProvider } from '@/features/projects/ProjectContext';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { RoleGuard } from '@/components/layout/RoleGuard';
 
@@ -45,6 +46,7 @@ export default function App() {
           <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
 
             <Route element={<ProtectedRoute />}>
               <Route index element={<DashboardPage />} />

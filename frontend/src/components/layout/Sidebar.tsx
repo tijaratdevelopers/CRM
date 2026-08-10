@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { NavLink } from 'react-router-dom';
-import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { navItems } from './navConfig';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,8 @@ function BrandMark() {
 }
 
 export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
-  const { profile } = useAuth();
+  const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
   const [collapsed, setCollapsed] = React.useState(
     () => localStorage.getItem(COLLAPSED_KEY) === '1',
   );
@@ -36,6 +37,31 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       localStorage.setItem(COLLAPSED_KEY, prev ? '0' : '1');
       return !prev;
     });
+  }
+
+  async function handleSignOut() {
+    onMobileClose?.();
+    await signOut();
+    navigate('/login');
+  }
+
+  function renderSignOut() {
+    return (
+      <div className={cn('border-t border-amber-900/20', collapsed ? 'p-2' : 'p-3')}>
+        <button
+          type="button"
+          onClick={handleSignOut}
+          title={collapsed ? 'Sign out' : undefined}
+          className={cn(
+            'flex w-full items-center rounded-lg text-sm font-medium text-amber-50/60 transition-colors hover:bg-amber-500/10 hover:text-white',
+            collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2',
+          )}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Sign out</span>}
+        </button>
+      </div>
+    );
   }
 
   function renderNav(onNavigate?: () => void) {
@@ -136,6 +162,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
           </button>
         </div>
         {renderNav()}
+        {renderSignOut()}
         {renderFooter()}
       </aside>
 
@@ -168,6 +195,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               </button>
             </div>
             {renderNav(onMobileClose)}
+            {renderSignOut()}
             {renderFooter()}
           </aside>
         </div>

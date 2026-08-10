@@ -4,9 +4,18 @@ import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, Shuffle, Megaphone } from 'lucide-react';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/lib/supabaseClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 const GOLD = 0xf0a500;
 const BG_COLOR = 0x1a1409;
@@ -194,6 +203,76 @@ function ThreeLoginBackground() {
   return <div ref={mountRef} className="pointer-events-none absolute inset-0" aria-hidden="true" />;
 }
 
+function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [email, setEmail] = React.useState('');
+  const [submitting, setSubmitting] = React.useState(false);
+  const [sent, setSent] = React.useState(false);
+
+  React.useEffect(() => {
+    if (open) {
+      setEmail('');
+      setSent(false);
+    }
+  }, [open]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setSubmitting(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setSent(true);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset your password</DialogTitle>
+          <DialogDescription>
+            Enter your account email and we'll send you a link to set a new password.
+          </DialogDescription>
+        </DialogHeader>
+        {sent ? (
+          <p className="text-sm text-muted-foreground">
+            If an account exists for <span className="font-medium text-foreground">{email}</span>, a reset link is
+            on its way — check your inbox.
+          </p>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="forgot-email">Email</Label>
+              <Input
+                id="forgot-email"
+                type="email"
+                autoComplete="email"
+                required
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? 'Sending…' : 'Send reset link'}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function BrandMark({ size = 'md' }: { size?: 'md' | 'lg' }) {
   return (
     <div
@@ -218,6 +297,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [submitting, setSubmitting] = React.useState(false);
   const [tilt, setTilt] = React.useState({ rx: 0, ry: 0 });
+  const [forgotOpen, setForgotOpen] = React.useState(false);
 
   if (session) {
     return <Navigate to="/" replace />;
@@ -380,6 +460,15 @@ export function LoginPage() {
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setForgotOpen(true)}
+                    className="text-xs font-medium text-amber-300 hover:text-amber-200 hover:underline"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               </div>
               <Button
                 type="submit"
@@ -400,6 +489,8 @@ export function LoginPage() {
           </p>
         </div>
       </div>
+
+      <ForgotPasswordDialog open={forgotOpen} onOpenChange={setForgotOpen} />
     </div>
   );
 }
