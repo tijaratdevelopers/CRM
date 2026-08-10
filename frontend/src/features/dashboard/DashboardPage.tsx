@@ -1,22 +1,18 @@
-import { LayoutGrid, Loader, Loader2 } from 'lucide-react';
+import { LayoutGrid, Loader } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { AdminDashboard } from '@/features/dashboard/AdminDashboard';
 import { TeamLeadDashboard } from '@/features/dashboard/TeamLeadDashboard';
 import { StaffDashboard } from '@/features/dashboard/StaffDashboard';
 import { InProgressLeads } from '@/features/dashboard/InProgressLeads';
 import { ThemeToggle } from '@/features/dashboard/ThemeToggle';
+import { FullScreenLoader } from '@/components/FullScreenLoader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export function DashboardPage() {
   const { profile, loading } = useAuth();
 
   if (loading || !profile) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-        Loading your dashboard…
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   let dashboard = null;

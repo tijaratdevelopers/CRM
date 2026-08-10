@@ -158,4 +158,39 @@
     .stat-tilt { transform: none !important; }
     .stat-icon-3d, .group:hover .stat-icon-3d { transform: none !important; }
   }
+
+  /* App-wide 3D cube loader (FullScreenLoader.tsx) — a real rotating cube,
+     not a flat spinner: six faces held in 3D space by a shared perspective. */
+  .loader-3d-scene {
+    perspective: 340px;
+  }
+  .loader-3d-cube {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    transform-style: preserve-3d;
+    animation: loader-cube-spin 2.6s infinite linear;
+  }
+  .loader-3d-face {
+    position: absolute;
+    inset: 0;
+    border: 1px solid hsl(var(--primary) / 0.5);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--gold) / 0.55));
+    box-shadow: 0 0 16px hsl(var(--primary) / 0.25) inset;
+  }
+  .loader-3d-face:nth-child(1) { transform: rotateY(0deg) translateZ(20px); }
+  .loader-3d-face:nth-child(2) { transform: rotateY(90deg) translateZ(20px); }
+  .loader-3d-face:nth-child(3) { transform: rotateY(180deg) translateZ(20px); }
+  .loader-3d-face:nth-child(4) { transform: rotateY(-90deg) translateZ(20px); }
+  .loader-3d-face:nth-child(5) { transform: rotateX(90deg) translateZ(20px); }
+  .loader-3d-face:nth-child(6) { transform: rotateX(-90deg) translateZ(20px); }
+
+  @keyframes loader-cube-spin {
+    from { transform: rotateX(0deg) rotateY(0deg); }
+    to { transform: rotateX(360deg) rotateY(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .loader-3d-cube { animation: none; transform: rotateX(-22deg) rotateY(35deg); }
+  }
 }

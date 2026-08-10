@@ -2,7 +2,6 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { Loader2 } from 'lucide-react';
 import { queryClient } from '@/lib/queryClient';
 import { ThemeProvider } from '@/lib/theme';
 import { AuthProvider } from '@/features/auth/AuthContext';
@@ -11,6 +10,7 @@ import { LoginPage } from '@/features/auth/LoginPage';
 import { ResetPasswordPage } from '@/features/auth/ResetPasswordPage';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { RoleGuard } from '@/components/layout/RoleGuard';
+import { FullScreenLoader } from '@/components/FullScreenLoader';
 
 const ProjectsPage = lazy(() => import('@/features/projects/ProjectsPage').then((m) => ({ default: m.ProjectsPage })));
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
@@ -30,14 +30,6 @@ const StaffPage = lazy(() => import('@/features/staff/StaffPage').then((m) => ({
 const ActivityLogsPage = lazy(() => import('@/features/activitylogs/ActivityLogsPage').then((m) => ({ default: m.ActivityLogsPage })));
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
-function RouteFallback() {
-  return (
-    <div className="flex h-[60vh] items-center justify-center">
-      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -45,7 +37,7 @@ export default function App() {
       <AuthProvider>
         <ProjectProvider>
         <BrowserRouter>
-          <Suspense fallback={<RouteFallback />}>
+          <Suspense fallback={<FullScreenLoader />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
