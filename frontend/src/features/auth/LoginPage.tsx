@@ -323,7 +323,7 @@ export function LoginPage() {
           </div>
           <h2 className="text-3xl font-extrabold leading-tight tracking-tight">
             <span className="text-white">Welcome to </span>
-            <span style={{ color: '#f0a500' }}>Tijarat Developers CRM</span>
+            <span className="text-amber-300">Tijarat Developers CRM</span>
           </h2>
           <p className="mt-2 text-sm text-gray-400">
             Sign in with the account your administrator created for you.
