@@ -1,4 +1,4 @@
-import { LayoutGrid, Loader } from 'lucide-react';
+import { LayoutGrid, Loader, Loader2 } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { AdminDashboard } from '@/features/dashboard/AdminDashboard';
 import { TeamLeadDashboard } from '@/features/dashboard/TeamLeadDashboard';
@@ -11,7 +11,12 @@ export function DashboardPage() {
   const { profile, loading } = useAuth();
 
   if (loading || !profile) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        Loading your dashboard…
+      </div>
+    );
   }
 
   let dashboard = null;
