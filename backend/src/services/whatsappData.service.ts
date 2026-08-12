@@ -3,7 +3,7 @@ import { HttpError } from '../middleware/auth';
 import { unwrap } from '../utils/db';
 import { applyLeadScope } from '../utils/scope';
 import { logActivity } from '../utils/activityLog';
-import { createNotification } from './notifications.service';
+import { createNotification, notifyAdminsOfUnassignedLead } from './notifications.service';
 import { autoAssignLead } from './assignment.service';
 import { sendWhatsAppMessage } from '../integrations/whatsapp.service';
 import { getPhoneNumberIdForProject, resolveProjectIdByPhoneNumberId } from './whatsappIntegration.service';
@@ -244,6 +244,8 @@ export async function recordInboundMessage(phone: string, body: string, phoneNum
     const assigned = await autoAssignLead(lead.id, phone, lead.project_id);
     if (assigned) {
       lead.assigned_staff_id = assigned.staffId;
+    } else {
+      await notifyAdminsOfUnassignedLead(lead.id, phone, 'WhatsApp');
     }
   }
 

@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../config/supabaseAdmin';
 import { HttpError } from '../middleware/auth';
 import { encryptSecret, decryptSecret } from '../utils/crypto';
 import { fetchLeadDetailsFromMeta, MetaLeadDetails } from '../integrations/meta.service';
-import { createNotification } from './notifications.service';
+import { notifyAdminsOfUnassignedLead } from './notifications.service';
 import { autoAssignLead } from './assignment.service';
 
 export const GRAPH_API_VERSION = 'v21.0';
@@ -783,23 +783,6 @@ function buildLeadNotes(details: MetaLeadDetails): string {
   return lines.join('\n');
 }
 
-/** Fallback when the round-robin engine has no one to assign to — admins need to know. */
-async function notifyAdminsOfNewLead(leadId: string, leadName: string): Promise<void> {
-  const { data: admins } = await supabaseAdmin.from('users').select('id').eq('role', 'admin').eq('is_active', true);
-
-  await Promise.all(
-    (admins ?? []).map((admin: { id: string }) =>
-      createNotification({
-        userId: admin.id,
-        type: 'lead_new_unassigned',
-        title: 'New lead from Meta Ads',
-        body: leadName,
-        payload: { leadId },
-      }),
-    ),
-  );
-}
-
 /** Returns true if a new lead row was created (false if already recorded or ignored). */
 export async function processLeadgenEvent(leadgenId: string, pageId?: string, formId?: string): Promise<boolean> {
   // Resolves which project this event belongs to (by form, then page) — null
@@ -867,7 +850,7 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
   // only fall back to notifying admins when nobody was available.
   const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
   if (!assigned) {
-    await notifyAdminsOfNewLead(lead.id, lead.name);
+    await notifyAdminsOfUnassignedLead(lead.id, lead.name, 'Meta Ads');
   }
   return true;
 }

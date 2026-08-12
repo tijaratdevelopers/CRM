@@ -43,6 +43,27 @@ export async function createNotification(input: CreateNotificationInput) {
   return notification;
 }
 
+/** Fallback when auto-assignment finds no available staff — surfaces the lead to every active admin instead of it sitting silently unassigned. */
+export async function notifyAdminsOfUnassignedLead(
+  leadId: string,
+  leadName: string,
+  sourceLabel: string,
+): Promise<void> {
+  const { data: admins } = await supabaseAdmin.from('users').select('id').eq('role', 'admin').eq('is_active', true);
+
+  await Promise.all(
+    (admins ?? []).map((admin: { id: string }) =>
+      createNotification({
+        userId: admin.id,
+        type: 'lead_new_unassigned',
+        title: `New lead from ${sourceLabel}`,
+        body: leadName,
+        payload: { leadId },
+      }),
+    ),
+  );
+}
+
 export async function listNotifications(userId: string, unreadOnly: boolean) {
   let query = supabaseAdmin
     .from('notifications')
