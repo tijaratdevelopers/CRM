@@ -7,6 +7,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -32,7 +34,8 @@ type ReportType =
   | 'team-performance'
   | 'conversion'
   | 'project-performance'
-  | 'campaign-performance';
+  | 'campaign-performance'
+  | 'daily-sales-report';
 
 type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
@@ -46,7 +49,16 @@ const REPORT_OPTIONS: { value: ReportType; label: string; adminOnly?: boolean }[
   { value: 'project-performance', label: 'Project Performance', adminOnly: true },
   { value: 'campaign-performance', label: 'Campaign Performance' },
   { value: 'conversion', label: 'Conversion' },
+  { value: 'daily-sales-report', label: 'Daily Sales Report', adminOnly: true },
 ];
+
+// Daily Sales Report is admin-only even for team_lead, unlike the other adminOnly reports above
+// (which team_lead can also see) — matches the backend's stricter ADMIN_ONLY_TYPES check.
+const ADMIN_STRICT_TYPES: ReportType[] = ['daily-sales-report'];
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const EXPORT_FORMATS: { value: ExportFormat; label: string }[] = [
   { value: 'csv', label: 'CSV' },
@@ -69,9 +81,13 @@ function formatCellValue(value: unknown): string {
   return String(value);
 }
 
-async function fetchReportPreview(type: ReportType, projectId: string | null): Promise<Record<string, unknown>[]> {
+async function fetchReportPreview(
+  type: ReportType,
+  projectId: string | null,
+  date: string | null,
+): Promise<Record<string, unknown>[]> {
   const { data } = await apiClient.get<Record<string, unknown>[]>(`/reports/${type}`, {
-    params: projectId ? { projectId } : undefined,
+    params: { projectId: projectId ?? undefined, date: date ?? undefined },
   });
   return data;
 }
@@ -81,15 +97,22 @@ export function ReportsPage() {
   const { selectedProjectId } = useProject();
   const [reportType, setReportType] = React.useState<ReportType | ''>('');
   const [exportingFormat, setExportingFormat] = React.useState<ExportFormat | null>(null);
+  const [reportDate, setReportDate] = React.useState(todayIsoDate);
+
+  const isDateFiltered = reportType === 'daily-sales-report';
 
   const visibleOptions = React.useMemo(
-    () => REPORT_OPTIONS.filter((option) => !option.adminOnly || profile?.role !== 'staff'),
+    () =>
+      REPORT_OPTIONS.filter((option) => {
+        if (ADMIN_STRICT_TYPES.includes(option.value)) return profile?.role === 'admin';
+        return !option.adminOnly || profile?.role !== 'staff';
+      }),
     [profile?.role],
   );
 
   const previewQuery = useQuery({
-    queryKey: ['report-preview', reportType, selectedProjectId],
-    queryFn: () => fetchReportPreview(reportType as ReportType, selectedProjectId),
+    queryKey: ['report-preview', reportType, selectedProjectId, isDateFiltered ? reportDate : null],
+    queryFn: () => fetchReportPreview(reportType as ReportType, selectedProjectId, isDateFiltered ? reportDate : null),
     enabled: !!reportType,
   });
 
@@ -101,7 +124,11 @@ export function ReportsPage() {
     setExportingFormat(format);
     try {
       const response = await apiClient.get(`/reports/${reportType}/export`, {
-        params: { format, projectId: selectedProjectId ?? undefined },
+        params: {
+          format,
+          projectId: selectedProjectId ?? undefined,
+          date: isDateFiltered ? reportDate : undefined,
+        },
         responseType: 'blob',
       });
       const blob = new Blob([response.data]);
@@ -153,6 +180,20 @@ export function ReportsPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {isDateFiltered && (
+              <div className="w-full max-w-[180px] space-y-1.5">
+                <Label htmlFor="report-date" className="text-xs text-muted-foreground">
+                  Date
+                </Label>
+                <Input
+                  id="report-date"
+                  type="date"
+                  value={reportDate}
+                  onChange={(e) => setReportDate(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="flex gap-2">
               {EXPORT_FORMATS.map((format) => {

@@ -15,11 +15,20 @@ const REPORT_TYPES = [
   'conversion',
   'project-performance',
   'campaign-performance',
+  'daily-sales-report',
 ] as const;
 
 type ReportType = (typeof REPORT_TYPES)[number];
 
 const RESTRICTED_TYPES: ReportType[] = ['staff-performance', 'team-performance', 'project-performance'];
+
+// Stricter than RESTRICTED_TYPES: those allow team_lead, this is admin-only per the user's requirement
+// that the Daily Sales Report is a management-only rollup of every staff member's day.
+const ADMIN_ONLY_TYPES: ReportType[] = ['daily-sales-report'];
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 function isReportType(value: string): value is ReportType {
   return (REPORT_TYPES as readonly string[]).includes(value);
@@ -30,6 +39,9 @@ async function resolveReportRows(type: ReportType, req: Request): Promise<Record
   const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
 
   if (RESTRICTED_TYPES.includes(type) && user.role !== 'admin' && user.role !== 'team_lead') {
+    throw new HttpError(403, 'Insufficient permissions for this action');
+  }
+  if (ADMIN_ONLY_TYPES.includes(type) && user.role !== 'admin') {
     throw new HttpError(403, 'Insufficient permissions for this action');
   }
 
@@ -52,6 +64,10 @@ async function resolveReportRows(type: ReportType, req: Request): Promise<Record
       return reportsService.getProjectPerformanceReport(user);
     case 'campaign-performance':
       return reportsService.getCampaignPerformanceReport(user, projectId);
+    case 'daily-sales-report': {
+      const date = typeof req.query.date === 'string' && req.query.date ? req.query.date : todayIsoDate();
+      return reportsService.getDailySalesReport(user, date, projectId);
+    }
   }
 }
 

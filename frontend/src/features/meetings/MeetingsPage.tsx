@@ -208,6 +208,7 @@ function buildMeetingSchema(isStaffRole: boolean) {
     meetingDate: z.string().min(1, 'Date is required'),
     meetingTime: z.string().min(1, 'Time is required'),
     mode: z.enum(['online', 'offline']),
+    meetingType: z.enum(['site_visit', 'end_user', 'dealer', 'other']),
     meetLink: z.string().optional(),
     zoomLink: z.string().optional(),
     location: z.string().optional(),
@@ -243,6 +244,7 @@ function NewMeetingDialog({
       meetingDate: meeting?.meeting_date ?? '',
       meetingTime: meeting?.meeting_time ?? '',
       mode: meeting?.mode ?? 'online',
+      meetingType: meeting?.meeting_type ?? 'other',
       meetLink: meeting?.meet_link ?? '',
       zoomLink: meeting?.zoom_link ?? '',
       location: meeting?.location ?? '',
@@ -279,6 +281,7 @@ function NewMeetingDialog({
         meetingDate: values.meetingDate,
         meetingTime: values.meetingTime,
         mode: values.mode,
+        meetingType: values.meetingType,
         meetLink: values.mode === 'online' ? values.meetLink || undefined : undefined,
         zoomLink: values.mode === 'online' ? values.zoomLink || undefined : undefined,
         location: values.mode === 'offline' ? values.location || undefined : undefined,
@@ -304,6 +307,7 @@ function NewMeetingDialog({
         meetingDate: values.meetingDate,
         meetingTime: values.meetingTime,
         mode: values.mode,
+        meetingType: values.meetingType,
         meetLink: values.mode === 'online' ? values.meetLink || undefined : undefined,
         zoomLink: values.mode === 'online' ? values.zoomLink || undefined : undefined,
         location: values.mode === 'offline' ? values.location || undefined : undefined,
@@ -412,6 +416,27 @@ function NewMeetingDialog({
                   <SelectContent>
                     <SelectItem value="online">Online</SelectItem>
                     <SelectItem value="offline">Offline</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="meetingType">Meeting Type</Label>
+            <Controller
+              control={control}
+              name="meetingType"
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger id="meetingType">
+                    <SelectValue placeholder="Select meeting type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="site_visit">Site Visit</SelectItem>
+                    <SelectItem value="end_user">End User Client Meeting</SelectItem>
+                    <SelectItem value="dealer">Dealer Meeting</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               )}

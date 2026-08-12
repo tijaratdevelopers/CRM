@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../config/supabaseAdmin';
 import { unwrap } from '../utils/db';
 import { applyLeadScope, resolveStaffScope, getTeamStaffIds } from '../utils/scope';
 import { listProjects } from './projects.service';
+import { getDailyNotesByStaffIds } from './dailyNotes.service';
 import { AuthUser, LeadStatus } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -283,6 +284,131 @@ export async function getStaffPerformanceReport(
     meetings_held: completedMeetings.get(row.id) ?? 0,
     leads_won: wonLeads.get(row.id) ?? 0,
   }));
+}
+
+interface StaffBookingSummary {
+  count: number;
+  amount: number;
+  propertyPlot: string;
+  downPaymentDone: boolean;
+}
+
+/** One row per staff for `date` — sums bookings.amount and joins property_plot when a staff has more than one. */
+async function fetchBookingsByStaffIds(staffIds: string[], date: string): Promise<Map<string, StaffBookingSummary>> {
+  const map = new Map<string, StaffBookingSummary>();
+  if (staffIds.length === 0) return map;
+
+  const rows = unwrap(
+    await supabaseAdmin
+      .from('bookings')
+      .select('staff_id, amount, property_plot, down_payment_done')
+      .in('staff_id', staffIds)
+      .eq('booking_date', date),
+  ) as { staff_id: string; amount: number; property_plot: string; down_payment_done: boolean }[];
+
+  for (const row of rows) {
+    const existing = map.get(row.staff_id);
+    if (existing) {
+      existing.count += 1;
+      existing.amount += Number(row.amount);
+      existing.propertyPlot = `${existing.propertyPlot}, ${row.property_plot}`;
+      existing.downPaymentDone = existing.downPaymentDone && row.down_payment_done;
+    } else {
+      map.set(row.staff_id, {
+        count: 1,
+        amount: Number(row.amount),
+        propertyPlot: row.property_plot,
+        downPaymentDone: row.down_payment_done,
+      });
+    }
+  }
+  return map;
+}
+
+/** Admin-only: per-staff, per-day rollup of calls/meetings/bookings/remarks, matching the team's WhatsApp daily report format. */
+export async function getDailySalesReport(
+  user: AuthUser,
+  date: string,
+  projectId?: string,
+): Promise<Record<string, unknown>[]> {
+  let staffQuery = supabaseAdmin.from('users').select('id, full_name').eq('role', 'staff');
+
+  if (user.role === 'team_lead') {
+    const staffIds = await getTeamStaffIds(user.id);
+    if (staffIds.length === 0) return [];
+    staffQuery = staffQuery.in('id', staffIds);
+  }
+  if (projectId) {
+    const teams = unwrap(
+      await supabaseAdmin.from('teams').select('id').eq('project_id', projectId),
+    ) as { id: string }[];
+    staffQuery = staffQuery.in('team_id', teams.map((t) => t.id));
+  }
+
+  const staff = unwrap(await staffQuery) as { id: string; full_name: string }[];
+  if (staff.length === 0) return [];
+
+  const staffIds = staff.map((row) => row.id);
+  const dateFilter = { column: 'call_date', value: date };
+  const meetingDateFilter = { column: 'meeting_date', value: date };
+
+  const [
+    totalCalls,
+    connectedCalls,
+    meetingsScheduled,
+    meetingsDone,
+    siteVisits,
+    endUserMeetings,
+    dealerMeetings,
+    bookingsByStaff,
+    remarksByStaff,
+  ] = await Promise.all([
+    countGroupedBy('call_logs', 'staff_id', staffIds, [dateFilter]),
+    countGroupedBy('call_logs', 'staff_id', staffIds, [dateFilter, { column: 'status', value: 'completed' }]),
+    countGroupedBy('meetings', 'staff_id', staffIds, [meetingDateFilter, { column: 'status', value: 'scheduled' }]),
+    countGroupedBy('meetings', 'staff_id', staffIds, [meetingDateFilter, { column: 'status', value: 'completed' }]),
+    countGroupedBy('meetings', 'staff_id', staffIds, [
+      meetingDateFilter,
+      { column: 'status', value: 'completed' },
+      { column: 'meeting_type', value: 'site_visit' },
+    ]),
+    countGroupedBy('meetings', 'staff_id', staffIds, [
+      meetingDateFilter,
+      { column: 'status', value: 'completed' },
+      { column: 'meeting_type', value: 'end_user' },
+    ]),
+    countGroupedBy('meetings', 'staff_id', staffIds, [
+      meetingDateFilter,
+      { column: 'status', value: 'completed' },
+      { column: 'meeting_type', value: 'dealer' },
+    ]),
+    fetchBookingsByStaffIds(staffIds, date),
+    getDailyNotesByStaffIds(staffIds, date),
+  ]);
+
+  return staff.map((row) => {
+    const callsTotal = totalCalls.get(row.id) ?? 0;
+    const callsConnected = connectedCalls.get(row.id) ?? 0;
+    const booking = bookingsByStaff.get(row.id);
+
+    return {
+      full_name: row.full_name,
+      date,
+      calls_total: callsTotal,
+      calls_connected: callsConnected,
+      calls_not_connected: callsTotal - callsConnected,
+      meetings_scheduled: meetingsScheduled.get(row.id) ?? 0,
+      meetings_done: meetingsDone.get(row.id) ?? 0,
+      site_visits: siteVisits.get(row.id) ?? 0,
+      end_user_meetings: endUserMeetings.get(row.id) ?? 0,
+      dealer_meetings: dealerMeetings.get(row.id) ?? 0,
+      bookings_done: booking?.count ?? 0,
+      amount_pkr: booking?.amount ?? 0,
+      property_plot: booking?.propertyPlot ?? null,
+      down_payment_done: booking?.downPaymentDone ?? null,
+      remarks: remarksByStaff.get(row.id) ?? null,
+    };
+  });
 }
 
 /** Admin only. */

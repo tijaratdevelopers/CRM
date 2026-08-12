@@ -24,6 +24,7 @@ import { LEAD_PRIORITIES, LEAD_STATUSES } from '@/types';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -226,6 +227,106 @@ function EditLeadInfoDialog({
   );
 }
 
+function BookingDialog({
+  open,
+  onOpenChange,
+  leadId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  leadId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [propertyPlot, setPropertyPlot] = React.useState('');
+  const [amount, setAmount] = React.useState('');
+  const [downPaymentDone, setDownPaymentDone] = React.useState(false);
+  const [notes, setNotes] = React.useState('');
+
+  React.useEffect(() => {
+    if (open) {
+      setPropertyPlot('');
+      setAmount('');
+      setDownPaymentDone(false);
+      setNotes('');
+    }
+  }, [open]);
+
+  const createMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post('/bookings', {
+        leadId,
+        propertyPlot: propertyPlot.trim(),
+        amount: Number(amount),
+        downPaymentDone,
+        notes: notes.trim() || undefined,
+      });
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['lead', leadId] });
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Booking recorded — lead marked as Won');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const canSubmit = propertyPlot.trim().length > 0 && Number(amount) > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Record Booking</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-property">Property / Plot *</Label>
+            <Input
+              id="booking-property"
+              value={propertyPlot}
+              onChange={(e) => setPropertyPlot(e.target.value)}
+              placeholder="e.g. Plot 12, Block C"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-amount">Amount (PKR) *</Label>
+            <Input
+              id="booking-amount"
+              type="number"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="booking-down-payment"
+              checked={downPaymentDone}
+              onCheckedChange={(value) => setDownPaymentDone(value === true)}
+            />
+            <Label htmlFor="booking-down-payment" className="cursor-pointer font-normal">
+              Down payment done
+            </Label>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="booking-notes">Notes (optional)</Label>
+            <Textarea id="booking-notes" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button disabled={!canSubmit || createMutation.isPending} onClick={() => createMutation.mutate()}>
+            {createMutation.isPending ? 'Saving…' : 'Save booking & mark Won'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -249,6 +350,7 @@ export function LeadDetailPage() {
   const [assignedStaffId, setAssignedStaffId] = React.useState('none');
   const [assignedTeamLeadId, setAssignedTeamLeadId] = React.useState('none');
   const [editInfoOpen, setEditInfoOpen] = React.useState(false);
+  const [bookingDialogOpen, setBookingDialogOpen] = React.useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -459,7 +561,13 @@ export function LeadDetailPage() {
             <Label>Status</Label>
             <Select
               value={lead.status}
-              onValueChange={(value) => patchMutation.mutate({ status: value as LeadStatus })}
+              onValueChange={(value) => {
+                if (value === 'won') {
+                  setBookingDialogOpen(true);
+                } else {
+                  patchMutation.mutate({ status: value as LeadStatus });
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -758,6 +866,7 @@ export function LeadDetailPage() {
       </Card>
 
       <EditLeadInfoDialog open={editInfoOpen} onOpenChange={setEditInfoOpen} lead={lead} />
+      <BookingDialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen} leadId={lead.id} />
     </div>
   );
 }

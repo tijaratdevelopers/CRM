@@ -136,6 +136,7 @@ export interface Meeting {
   meeting_date: string;
   meeting_time: string;
   mode: 'online' | 'offline';
+  meeting_type: 'site_visit' | 'end_user' | 'dealer' | 'other';
   meet_link: string | null;
   zoom_link: string | null;
   location: string | null;

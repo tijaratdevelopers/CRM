@@ -6,6 +6,7 @@ import { AuthUser } from '../types';
 
 export type MeetingMode = 'online' | 'offline';
 export type MeetingStatus = 'scheduled' | 'completed' | 'cancelled';
+export type MeetingType = 'site_visit' | 'end_user' | 'dealer' | 'other';
 
 export interface Meeting {
   id: string;
@@ -15,6 +16,7 @@ export interface Meeting {
   meeting_date: string;
   meeting_time: string;
   mode: MeetingMode;
+  meeting_type: MeetingType;
   meet_link: string | null;
   zoom_link: string | null;
   location: string | null;
@@ -39,6 +41,7 @@ export interface CreateMeetingInput {
   meetingDate: string;
   meetingTime: string;
   mode: MeetingMode;
+  meetingType?: MeetingType;
   meetLink?: string;
   zoomLink?: string;
   location?: string;
@@ -51,6 +54,7 @@ export interface UpdateMeetingInput {
   meetingDate?: string;
   meetingTime?: string;
   mode?: MeetingMode;
+  meetingType?: MeetingType;
   meetLink?: string;
   zoomLink?: string;
   location?: string;
@@ -105,6 +109,7 @@ export async function createMeeting(user: AuthUser, input: CreateMeetingInput): 
         meeting_date: input.meetingDate,
         meeting_time: input.meetingTime,
         mode: input.mode,
+        meeting_type: input.meetingType ?? 'other',
         meet_link: input.meetLink ?? null,
         zoom_link: input.zoomLink ?? null,
         location: input.location ?? null,
@@ -138,6 +143,7 @@ export async function updateMeeting(user: AuthUser, id: string, patch: UpdateMee
   if (patch.meetingDate !== undefined) updates.meeting_date = patch.meetingDate;
   if (patch.meetingTime !== undefined) updates.meeting_time = patch.meetingTime;
   if (patch.mode !== undefined) updates.mode = patch.mode;
+  if (patch.meetingType !== undefined) updates.meeting_type = patch.meetingType;
   if (patch.meetLink !== undefined) updates.meet_link = patch.meetLink;
   if (patch.zoomLink !== undefined) updates.zoom_link = patch.zoomLink;
   if (patch.location !== undefined) updates.location = patch.location;

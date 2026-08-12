@@ -1,12 +1,23 @@
+import * as React from 'react';
 import type { ReactNode } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
+import { toast } from 'sonner';
 import { UserCircle2, Contact, PhoneCall, CalendarClock, BellRing, Sparkles, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+
+interface DailyNote {
+  id: string;
+  staff_id: string;
+  note_date: string;
+  remarks: string;
+}
 
 interface StaffSummary {
   my_leads: number;
@@ -23,6 +34,64 @@ async function fetchStaffSummary(): Promise<StaffSummary> {
 }
 
 const BAR_COLORS = ['#059669', '#0d9488', '#f5c445', '#e11d48', '#10b981', '#6366f1'];
+
+function TodaysRemarksCard() {
+  const queryClient = useQueryClient();
+  const [remarks, setRemarks] = React.useState('');
+
+  const noteQuery = useQuery({
+    queryKey: ['daily-note-mine'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<DailyNote | null>('/daily-notes/me');
+      return data;
+    },
+  });
+
+  React.useEffect(() => {
+    setRemarks(noteQuery.data?.remarks ?? '');
+  }, [noteQuery.data]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<DailyNote>('/daily-notes', { remarks: remarks.trim() });
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['daily-note-mine'], data);
+      toast.success('Remarks saved');
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  return (
+    <Card className="animate-fade-in-up [animation-delay:400ms]">
+      <CardHeader>
+        <CardTitle>Today's Remarks</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        <p className="text-sm text-muted-foreground">
+          Optional — add a short note about today (issues, blockers, anything worth flagging). This shows up on
+          the admin's Daily Sales Report.
+        </p>
+        <Textarea
+          placeholder="e.g. Client at Plot 12 asked for a price revision, following up tomorrow…"
+          value={remarks}
+          onChange={(e) => setRemarks(e.target.value)}
+          disabled={noteQuery.isLoading}
+        />
+        <div>
+          <Button
+            size="sm"
+            disabled={!remarks.trim() || saveMutation.isPending || noteQuery.isLoading}
+            onClick={() => saveMutation.mutate()}
+          >
+            {saveMutation.isPending ? 'Saving…' : 'Save remarks'}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function StaffDashboard() {
   const { profile } = useAuth();
@@ -101,6 +170,8 @@ export function StaffDashboard() {
           )}
         </CardContent>
       </Card>
+
+      <TodaysRemarksCard />
     </div>
   );
 }

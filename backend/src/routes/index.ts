@@ -18,6 +18,8 @@ import { whatsappRouter } from './whatsapp.routes';
 import { metaRouter } from './meta.routes';
 import { activityLogsRouter } from './activityLogs.routes';
 import { dashboardRouter } from './dashboard.routes';
+import { bookingsRouter } from './bookings.routes';
+import { dailyNotesRouter } from './dailyNotes.routes';
 
 export const apiRouter = Router();
 
@@ -40,3 +42,5 @@ apiRouter.use('/whatsapp', whatsappRouter);
 apiRouter.use('/meta', metaRouter);
 apiRouter.use('/activity-logs', activityLogsRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+apiRouter.use('/bookings', bookingsRouter);
+apiRouter.use('/daily-notes', dailyNotesRouter);
