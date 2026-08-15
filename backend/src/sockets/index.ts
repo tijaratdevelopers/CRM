@@ -7,7 +7,7 @@ let io: SocketIOServer | undefined;
 
 export function initSockets(httpServer: HttpServer) {
   io = new SocketIOServer(httpServer, {
-    cors: { origin: env.frontendUrl, credentials: true },
+    cors: { origin: env.frontendUrls, credentials: true },
   });
 
   io.use(async (socket: Socket, next) => {

@@ -13,10 +13,20 @@ function required(name: string): string {
 const publicBackendUrl =
   process.env.PUBLIC_BACKEND_URL || `http://localhost:${Number(process.env.PORT) || 4000}`;
 
+// FRONTEND_URL may be a comma-separated list (e.g. custom domain + the Vercel
+// default domain) so both keep working as allowed CORS origins at once.
+const frontendUrls = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((u) => u.trim())
+  .filter(Boolean);
+
 export const env = {
   port: Number(process.env.PORT) || 4000,
   nodeEnv: process.env.NODE_ENV || 'development',
-  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  frontendUrl: frontendUrls[0],
+  // All allowed frontend origins, for CORS — use this instead of frontendUrl
+  // wherever multiple origins must be accepted.
+  frontendUrls,
   // The publicly reachable URL for this backend (e.g. an ngrok/production domain) —
   // used for the Meta webhook URL and the OAuth redirect URI.
   publicBackendUrl,

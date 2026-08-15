@@ -12,7 +12,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(compression());
-app.use(cors({ origin: env.frontendUrl, credentials: true }));
+app.use(cors({ origin: env.frontendUrls, credentials: true }));
 app.use(morgan(env.nodeEnv === 'development' ? 'dev' : 'combined'));
 
 // Meta/WhatsApp webhook signature checks need the exact raw bytes that were signed, not a re-serialized copy.
