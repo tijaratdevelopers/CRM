@@ -45,6 +45,7 @@ async function attachMembers(teams: Team[]): Promise<TeamWithMembers[]> {
       .select('id, full_name, email, is_active, team_id, round_robin_position')
       .in('team_id', teamIds)
       .eq('role', 'staff')
+      .eq('is_active', true)
       .order('round_robin_position', { ascending: true, nullsFirst: false })
       .order('created_at'),
   ) as {

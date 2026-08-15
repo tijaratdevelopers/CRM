@@ -80,7 +80,7 @@ interface CreatedUserResult extends UserProfile {
 
 async function fetchUsers(role: RoleFilter): Promise<UserProfile[]> {
   const { data } = await apiClient.get<UserProfile[]>('/users', {
-    params: role === 'all' ? undefined : { role },
+    params: { ...(role === 'all' ? undefined : { role }), includeInactive: true },
   });
   return data;
 }

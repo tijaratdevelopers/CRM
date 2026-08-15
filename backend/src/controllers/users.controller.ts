@@ -11,7 +11,8 @@ export async function list(req: Request, res: Response) {
     throw new HttpError(400, `Invalid role filter: ${roleQuery}`);
   }
 
-  const data = await usersService.listUsers(req.user!, roleQuery as Role | undefined);
+  const includeInactive = req.query.includeInactive === 'true';
+  const data = await usersService.listUsers(req.user!, roleQuery as Role | undefined, includeInactive);
   res.json(data);
 }
 

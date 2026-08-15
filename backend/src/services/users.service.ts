@@ -45,14 +45,31 @@ interface UpdateUserInput {
 /**
  * Admin sees everyone (optionally filtered by role). Team lead sees only their
  * own staff (role='staff' and team_lead_id = their id) plus their own row.
+ *
+ * Deactivated users are excluded everywhere by default — every staff/team-lead
+ * picker in the app (lead/task/meeting assignment, project routing, etc.)
+ * calls this same endpoint, so a deactivated account simply stops appearing
+ * as an option anywhere the moment it's turned off. `includeInactive` is the
+ * one deliberate carve-out, for the admin-only Users management page, which
+ * still needs to show deactivated accounts (tagged "Inactive") so an admin
+ * can reactivate them — only honored for admins, so no other caller can use
+ * it to surface accounts they shouldn't see.
  */
-export async function listUsers(requestingUser: AuthUser, roleFilter?: Role): Promise<UserProfile[]> {
+export async function listUsers(
+  requestingUser: AuthUser,
+  roleFilter?: Role,
+  includeInactive?: boolean,
+): Promise<UserProfile[]> {
   let query = supabaseAdmin.from('users').select(PROFILE_COLUMNS).order('created_at', { ascending: false });
 
   if (requestingUser.role === 'team_lead') {
     query = query.or(`id.eq.${requestingUser.id},and(role.eq.staff,team_lead_id.eq.${requestingUser.id})`);
   } else if (roleFilter) {
     query = query.eq('role', roleFilter);
+  }
+
+  if (!(includeInactive && requestingUser.role === 'admin')) {
+    query = query.eq('is_active', true);
   }
 
   return unwrap(await query) as UserProfile[];
@@ -74,7 +91,12 @@ export async function getUserById(requestingUser: AuthUser, id: string): Promise
 
 export async function listByRole(role: Role): Promise<UserProfile[]> {
   return unwrap(
-    await supabaseAdmin.from('users').select(PROFILE_COLUMNS).eq('role', role).order('created_at', { ascending: false }),
+    await supabaseAdmin
+      .from('users')
+      .select(PROFILE_COLUMNS)
+      .eq('role', role)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false }),
   ) as UserProfile[];
 }
 
@@ -85,6 +107,7 @@ export async function listStaffForTeamLead(teamLeadId: string): Promise<UserProf
       .select(PROFILE_COLUMNS)
       .eq('role', 'staff')
       .eq('team_lead_id', teamLeadId)
+      .eq('is_active', true)
       .order('created_at', { ascending: false }),
   ) as UserProfile[];
 }

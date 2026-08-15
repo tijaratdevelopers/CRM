@@ -13,6 +13,11 @@ export interface CampaignRouting {
   directTeamLeadId?: string | null;
 }
 
+async function isActiveUser(userId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin.from('users').select('is_active').eq('id', userId).maybeSingle();
+  return data?.is_active === true;
+}
+
 /**
  * Assigns one lead within its project. Precedence, most to least specific:
  * 1. `campaignRouting` — the Meta campaign this lead came from is routed
@@ -33,10 +38,10 @@ export async function autoAssignLead(
   projectId: string,
   campaignRouting?: CampaignRouting,
 ): Promise<AutoAssignResult | null> {
-  if (campaignRouting?.directStaffId) {
+  if (campaignRouting?.directStaffId && (await isActiveUser(campaignRouting.directStaffId))) {
     return assignDirectToStaff(leadId, leadName, campaignRouting.directStaffId);
   }
-  if (campaignRouting?.directTeamLeadId) {
+  if (campaignRouting?.directTeamLeadId && (await isActiveUser(campaignRouting.directTeamLeadId))) {
     return assignDirectToTeamLead(leadId, leadName, campaignRouting.directTeamLeadId);
   }
 
@@ -46,7 +51,10 @@ export async function autoAssignLead(
     .eq('id', projectId)
     .maybeSingle();
 
-  if (project?.direct_staff_id) {
+  // Falls through to round robin below if the routed staff member has since
+  // been deactivated, rather than silently handing them a lead they can no
+  // longer act on.
+  if (project?.direct_staff_id && (await isActiveUser(project.direct_staff_id))) {
     return assignDirectToStaff(leadId, leadName, project.direct_staff_id);
   }
 

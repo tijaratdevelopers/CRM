@@ -1,5 +1,6 @@
 import * as React from 'react';
 import type { Session } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 import { supabase } from '@/lib/supabaseClient';
 import { apiClient } from '@/lib/apiClient';
 import { connectSocket, disconnectSocket } from '@/lib/socket';
@@ -25,8 +26,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data } = await apiClient.get<UserProfile>('/auth/me');
       setProfile(data);
-    } catch {
+    } catch (err) {
       setProfile(null);
+      // A deactivated account can still hold a valid Supabase session (Supabase
+      // Auth has no concept of the CRM's own is_active flag) — every API call
+      // 403s with this message, so catch it here and sign them out cleanly
+      // instead of leaving a broken, error-toast-riddled shell rendered.
+      if (err instanceof Error && err.message.toLowerCase().includes('deactivated')) {
+        toast.error(err.message);
+        await supabase.auth.signOut();
+        disconnectSocket();
+        setSession(null);
+      }
     }
   }, []);
 
