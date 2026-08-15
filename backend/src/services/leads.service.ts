@@ -324,6 +324,22 @@ export async function deleteLead(user: AuthUser, id: string): Promise<void> {
   }
 }
 
+/** Admin-only, hard delete of multiple leads — reuses deleteLead's scoping so any id outside the actor's access 404s instead of silently skipping. */
+export async function bulkDeleteLeads(user: AuthUser, ids: string[]): Promise<{ deleted: number }> {
+  await Promise.all(ids.map((id) => deleteLead(user, id)));
+  return { deleted: ids.length };
+}
+
+/** Reuses assignLead's scoping/notification logic per lead. */
+export async function bulkAssignLeads(
+  user: AuthUser,
+  ids: string[],
+  input: AssignLeadInput,
+): Promise<{ assigned: number }> {
+  await Promise.all(ids.map((id) => assignLead(user, id, input)));
+  return { assigned: ids.length };
+}
+
 interface BulkUploadRow {
   name?: string;
   phone?: string;

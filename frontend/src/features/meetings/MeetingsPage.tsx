@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { Lead, Meeting, PaginatedResponse, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -556,6 +558,7 @@ export function MeetingsPage() {
 
   const meetings = meetingsQuery.data ?? [];
   const colCount = canSeeStaff ? 7 : 6;
+  const { page, setPage, totalPages, pageItems: pagedMeetings, total } = usePagination(meetings, 10);
 
   return (
     <div className="space-y-4">
@@ -627,7 +630,7 @@ export function MeetingsPage() {
                 </TableCell>
               </TableRow>
             )}
-            {meetings.map((meeting) => (
+            {pagedMeetings.map((meeting) => (
               <TableRow key={meeting.id}>
                 <TableCell className="font-medium">{meeting.title}</TableCell>
                 <TableCell>
@@ -687,6 +690,8 @@ export function MeetingsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       <NewMeetingDialog
         open={dialogOpen}

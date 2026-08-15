@@ -63,6 +63,27 @@ export async function remove(req: Request, res: Response) {
   res.status(204).send();
 }
 
+function requireIdsArray(body: unknown): string[] {
+  const ids = (body as { leadIds?: unknown })?.leadIds;
+  if (!Array.isArray(ids) || ids.length === 0 || !ids.every((id) => typeof id === 'string')) {
+    throw new HttpError(400, 'leadIds must be a non-empty array of strings');
+  }
+  return ids;
+}
+
+export async function bulkRemove(req: Request, res: Response) {
+  const ids = requireIdsArray(req.body);
+  const result = await leadsService.bulkDeleteLeads(req.user!, ids);
+  res.json(result);
+}
+
+export async function bulkAssign(req: Request, res: Response) {
+  const ids = requireIdsArray(req.body);
+  const { assignedStaffId, assignedTeamLeadId } = req.body ?? {};
+  const result = await leadsService.bulkAssignLeads(req.user!, ids, { assignedStaffId, assignedTeamLeadId });
+  res.json(result);
+}
+
 export async function bulkUpload(req: Request, res: Response) {
   const file = req.file;
   if (!file) {

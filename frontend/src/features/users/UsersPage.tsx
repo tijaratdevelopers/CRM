@@ -6,8 +6,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { Role, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordField } from '@/components/PasswordField';
@@ -439,6 +441,7 @@ export function UsersPage() {
   };
 
   const users = usersQuery.data ?? [];
+  const { page, setPage, totalPages, pageItems: pagedUsers, total } = usePagination(users, 10);
 
   return (
     <div className="space-y-4">
@@ -488,7 +491,7 @@ export function UsersPage() {
                 </TableCell>
               </TableRow>
             )}
-            {users.map((user) => (
+            {pagedUsers.map((user) => (
               <TableRow key={user.id}>
                 <TableCell className="font-medium">{user.full_name}</TableCell>
                 <TableCell>{user.email}</TableCell>
@@ -526,6 +529,8 @@ export function UsersPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       <UserFormDialog
         open={formOpen}

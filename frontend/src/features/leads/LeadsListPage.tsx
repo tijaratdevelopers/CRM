@@ -32,6 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -56,7 +57,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 function statusBadgeVariant(status: LeadStatus): NonNullable<BadgeProps['variant']> {
   switch (status) {
@@ -382,6 +383,10 @@ export function LeadsListPage() {
   const [bulkOpen, setBulkOpen] = React.useState(false);
   const [bulkFile, setBulkFile] = React.useState<File | null>(null);
   const [editingLead, setEditingLead] = React.useState<Lead | null>(null);
+  const [rowSelection, setRowSelection] = React.useState<Record<string, boolean>>({});
+  const [bulkAssignOpen, setBulkAssignOpen] = React.useState(false);
+  const [bulkAssignType, setBulkAssignType] = React.useState<'staff' | 'team_lead'>('staff');
+  const [bulkAssignId, setBulkAssignId] = React.useState<string>('');
 
   React.useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(searchInput), 300);
@@ -451,7 +456,7 @@ export function LeadsListPage() {
       const { data } = await apiClient.get<UserProfile[]>('/team-leads');
       return data;
     },
-    enabled: isAdmin && (addOpen || !!editingLead),
+    enabled: isAdmin && (addOpen || !!editingLead || bulkAssignOpen),
   });
 
   const staffMap = React.useMemo(() => {
@@ -552,9 +557,70 @@ export function LeadsListPage() {
     }
   };
 
+  const selectedLeadIds = Object.keys(rowSelection);
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (leadIds: string[]) => {
+      await apiClient.post('/leads/bulk-delete', { leadIds });
+    },
+    onSuccess: (_data, leadIds) => {
+      toast.success(`${leadIds.length} lead(s) deleted`);
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      setRowSelection({});
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: async (input: { leadIds: string[]; assignedStaffId?: string; assignedTeamLeadId?: string }) => {
+      await apiClient.post('/leads/bulk-assign', input);
+    },
+    onSuccess: (_data, input) => {
+      toast.success(`${input.leadIds.length} lead(s) assigned`);
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      setRowSelection({});
+      setBulkAssignOpen(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const handleBulkDelete = () => {
+    if (window.confirm(`Delete ${selectedLeadIds.length} selected lead(s)? This also removes their meetings, follow-ups and call logs.`)) {
+      bulkDeleteMutation.mutate(selectedLeadIds);
+    }
+  };
+
   const columnHelper = createColumnHelper<Lead>();
+
+  const selectColumn = columnHelper.display({
+    id: 'select',
+    header: (info) => (
+      <Checkbox
+        checked={
+          info.table.getIsAllPageRowsSelected()
+            ? true
+            : info.table.getIsSomePageRowsSelected()
+              ? 'indeterminate'
+              : false
+        }
+        onCheckedChange={(value) => info.table.toggleAllPageRowsSelected(!!value)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select all"
+      />
+    ),
+    cell: (info) => (
+      <Checkbox
+        checked={info.row.getIsSelected()}
+        onCheckedChange={(value) => info.row.toggleSelected(!!value)}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select row"
+      />
+    ),
+  });
+
   const columns = React.useMemo(
     () => [
+      ...(canManage ? [selectColumn] : []),
       columnHelper.accessor('name', { header: 'Name' }),
       columnHelper.accessor('phone', {
         header: 'Phone',
@@ -636,12 +702,16 @@ export function LeadsListPage() {
         : []),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [staffMap, sourceMap, profile, canManage, isAdmin, deleteLeadMutation.isPending],
+    [staffMap, sourceMap, profile, canManage, isAdmin, deleteLeadMutation.isPending, selectColumn],
   );
 
   const table = useReactTable({
     data: leadsQuery.data?.data ?? [],
     columns,
+    getRowId: (row) => row.id,
+    state: { rowSelection },
+    onRowSelectionChange: setRowSelection,
+    enableRowSelection: canManage,
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -739,6 +809,30 @@ export function LeadsListPage() {
           </div>
         )}
       </div>
+
+      {canManage && selectedLeadIds.length > 0 && (
+        <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-4 py-2.5">
+          <p className="text-sm font-medium text-foreground">{selectedLeadIds.length} lead(s) selected</p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={() => setBulkAssignOpen(true)}>
+              Assign
+            </Button>
+            {isAdmin && (
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={bulkDeleteMutation.isPending}
+                onClick={handleBulkDelete}
+              >
+                Delete
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => setRowSelection({})}>
+              Clear
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-lg border bg-card">
         <Table>
@@ -1031,6 +1125,74 @@ export function LeadsListPage() {
         staff={staffQuery.data ?? []}
         teamLeads={teamLeadsQuery.data ?? []}
       />
+
+      <Dialog
+        open={bulkAssignOpen}
+        onOpenChange={(open) => {
+          setBulkAssignOpen(open);
+          if (!open) setBulkAssignId('');
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign {selectedLeadIds.length} lead(s)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {isAdmin && (
+              <div className="space-y-1.5">
+                <Label>Assign to</Label>
+                <Select
+                  value={bulkAssignType}
+                  onValueChange={(v) => {
+                    setBulkAssignType(v as 'staff' | 'team_lead');
+                    setBulkAssignId('');
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="staff">A staff member</SelectItem>
+                    <SelectItem value="team_lead">A team lead</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5">
+              <Label>{bulkAssignType === 'staff' ? 'Staff member' : 'Team lead'}</Label>
+              <Select value={bulkAssignId} onValueChange={setBulkAssignId}>
+                <SelectTrigger>
+                  <SelectValue placeholder={bulkAssignType === 'staff' ? 'Select staff member' : 'Select team lead'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {(bulkAssignType === 'staff' ? staffQuery.data : teamLeadsQuery.data)?.map((u) => (
+                    <SelectItem key={u.id} value={u.id}>
+                      {u.full_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setBulkAssignOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!bulkAssignId || bulkAssignMutation.isPending}
+              onClick={() =>
+                bulkAssignMutation.mutate({
+                  leadIds: selectedLeadIds,
+                  assignedStaffId: bulkAssignType === 'staff' ? bulkAssignId : undefined,
+                  assignedTeamLeadId: bulkAssignType === 'team_lead' ? bulkAssignId : undefined,
+                })
+              }
+            >
+              {bulkAssignMutation.isPending ? 'Assigning…' : 'Assign'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

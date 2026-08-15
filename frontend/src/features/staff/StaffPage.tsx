@@ -6,9 +6,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { UserProfile } from '@/types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordField } from '@/components/PasswordField';
@@ -324,6 +326,7 @@ export function StaffPage() {
   }, [teamLeads]);
 
   const staff = staffQuery.data ?? [];
+  const { page, setPage, totalPages, pageItems: pagedStaff, total } = usePagination(staff, 10);
 
   return (
     <div className="space-y-4">
@@ -364,7 +367,7 @@ export function StaffPage() {
                 </TableCell>
               </TableRow>
             )}
-            {staff.map((member) => (
+            {pagedStaff.map((member) => (
               <TableRow
                 key={member.id}
                 className="cursor-pointer"
@@ -402,6 +405,8 @@ export function StaffPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       <StaffPerformanceDialog staffMember={selectedStaff} onOpenChange={() => setSelectedStaff(null)} />
 

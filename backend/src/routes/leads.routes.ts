@@ -21,3 +21,5 @@ leadsRouter.post(
   upload.single('file'),
   leadsController.bulkUpload,
 );
+leadsRouter.post('/bulk-delete', requireRole('admin'), leadsController.bulkRemove);
+leadsRouter.post('/bulk-assign', requireRole('admin', 'team_lead'), leadsController.bulkAssign);

@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { Task, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -320,6 +322,7 @@ export function TasksPage() {
     submitMutation.isPending || approveMutation.isPending || rejectMutation.isPending || deleteMutation.isPending;
 
   const tasks = tasksQuery.data ?? [];
+  const { page, setPage, totalPages, pageItems: pagedTasks, total } = usePagination(tasks, 10);
 
   return (
     <div className="space-y-4">
@@ -360,7 +363,7 @@ export function TasksPage() {
                 </TableCell>
               </TableRow>
             )}
-            {tasks.map((task) => {
+            {pagedTasks.map((task) => {
               const isAssignee = task.assigned_to === profile?.id;
               const isOwnCreation = task.created_by === profile?.id;
               const canDelete = profile?.role === 'admin' || (profile?.role === 'team_lead' && isOwnCreation);
@@ -431,6 +434,8 @@ export function TasksPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       {canManage && (
         <NewTaskDialog

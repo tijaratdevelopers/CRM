@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { CallLog, Lead, PaginatedResponse, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -506,6 +508,7 @@ export function CallLogsPage() {
   };
 
   const callLogs = callLogsQuery.data ?? [];
+  const { page, setPage, totalPages, pageItems: pagedCallLogs, total } = usePagination(callLogs, 10);
 
   return (
     <div className="space-y-4">
@@ -565,7 +568,7 @@ export function CallLogsPage() {
                 </TableCell>
               </TableRow>
             )}
-            {callLogs.map((callLog) => (
+            {pagedCallLogs.map((callLog) => (
               <TableRow key={callLog.id}>
                 <TableCell>
                   <LeadNameCell leadId={callLog.lead_id} />
@@ -612,6 +615,8 @@ export function CallLogsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       <CallLogFormDialog
         open={dialogOpen}

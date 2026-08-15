@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePagination } from '@/hooks/usePagination';
 import type { FollowUp, Lead, PaginatedResponse, UserProfile } from '@/types';
 import { Button } from '@/components/ui/button';
+import { PaginationFooter } from '@/components/ui/pagination-footer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -451,6 +453,7 @@ export function FollowUpsPage() {
   };
 
   const followUps = followUpsQuery.data ?? [];
+  const { page, setPage, totalPages, pageItems: pagedFollowUps, total } = usePagination(followUps, 10);
 
   return (
     <div className="space-y-4">
@@ -520,7 +523,7 @@ export function FollowUpsPage() {
                 </TableCell>
               </TableRow>
             )}
-            {followUps.map((followUp) => (
+            {pagedFollowUps.map((followUp) => (
               <TableRow key={followUp.id}>
                 <TableCell>
                   <LeadNameCell leadId={followUp.lead_id} />
@@ -579,6 +582,8 @@ export function FollowUpsPage() {
           </TableBody>
         </Table>
       </div>
+
+      <PaginationFooter page={page} totalPages={totalPages} total={total} onPageChange={setPage} />
 
       <NewFollowUpDialog
         open={dialogOpen}

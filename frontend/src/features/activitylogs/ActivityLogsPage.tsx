@@ -27,7 +27,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 const ENTITY_TYPE_OPTIONS = [
   { value: 'all', label: 'All entities' },
