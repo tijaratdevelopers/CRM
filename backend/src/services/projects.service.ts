@@ -3,6 +3,7 @@ import { HttpError } from '../middleware/auth';
 import { unwrap } from '../utils/db';
 import { logActivity } from '../utils/activityLog';
 import { AuthUser } from '../types';
+import * as teamsService from './teams.service';
 
 export interface Project {
   id: string;
@@ -47,7 +48,12 @@ export async function listProjects(user: AuthUser): Promise<Project[]> {
 
 export async function createProject(
   user: AuthUser,
-  input: { name: string; description?: string; directStaffId?: string | null },
+  input: {
+    name: string;
+    description?: string;
+    directStaffId?: string | null;
+    teamLeadIds?: string[];
+  },
 ): Promise<Project> {
   if (input.directStaffId) {
     await assertIsStaff(input.directStaffId);
@@ -73,13 +79,23 @@ export async function createProject(
     metadata: { name: project.name },
   });
 
+  if (input.teamLeadIds && input.teamLeadIds.length > 0) {
+    await ensureTeamsForTeamLeads(user, project.id, project.name, input.teamLeadIds);
+  }
+
   return project;
 }
 
 export async function updateProject(
   user: AuthUser,
   id: string,
-  patch: { name?: string; description?: string | null; isActive?: boolean; directStaffId?: string | null },
+  patch: {
+    name?: string;
+    description?: string | null;
+    isActive?: boolean;
+    directStaffId?: string | null;
+    teamLeadIds?: string[];
+  },
 ): Promise<Project> {
   if (patch.directStaffId) {
     await assertIsStaff(patch.directStaffId);
@@ -103,7 +119,54 @@ export async function updateProject(
     metadata: patch as Record<string, unknown>,
   });
 
+  if (patch.teamLeadIds && patch.teamLeadIds.length > 0) {
+    await ensureTeamsForTeamLeads(user, id, project.name, patch.teamLeadIds);
+  }
+
   return project;
+}
+
+/**
+ * Attaches team leads to a project by ensuring each one has a team on it —
+ * teams are what the round-robin engine (assign_lead_round_robin) actually
+ * scopes staff pools by, so this is what makes "select these team leads for
+ * this project" put their staff into the project's round-robin pool. Only
+ * adds missing teams; never removes one for a team lead the caller left out,
+ * since that could silently strand a team lead's already-assigned leads.
+ */
+async function ensureTeamsForTeamLeads(
+  user: AuthUser,
+  projectId: string,
+  projectName: string,
+  teamLeadIds: string[],
+): Promise<void> {
+  const uniqueIds = Array.from(new Set(teamLeadIds));
+
+  const existingTeams = unwrap(
+    await supabaseAdmin.from('teams').select('team_lead_id').eq('project_id', projectId),
+  ) as { team_lead_id: string | null }[];
+  const alreadyCovered = new Set(existingTeams.map((t) => t.team_lead_id).filter(Boolean));
+
+  const missingIds = uniqueIds.filter((id) => !alreadyCovered.has(id));
+  if (missingIds.length === 0) return;
+
+  const leads = unwrap(
+    await supabaseAdmin.from('users').select('id, full_name').in('id', missingIds),
+  ) as { id: string; full_name: string }[];
+  const nameById = new Map(leads.map((l) => [l.id, l.full_name]));
+
+  // Team names are unique across the whole table, so the project name must be
+  // in there too — otherwise attaching the same team lead to a second project
+  // collides on "<name>'s Team" already existing from the first one.
+  await Promise.all(
+    missingIds.map((teamLeadId) =>
+      teamsService.createTeam(user, {
+        name: `${nameById.get(teamLeadId) ?? 'Team'}'s Team — ${projectName}`,
+        teamLeadId,
+        projectId,
+      }),
+    ),
+  );
 }
 
 export async function deleteProject(user: AuthUser, id: string): Promise<void> {

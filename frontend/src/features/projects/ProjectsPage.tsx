@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -27,6 +28,11 @@ import {
 } from '@/components/ui/select';
 
 const NONE = '__none__';
+
+interface TeamSummary {
+  id: string;
+  team_lead_id: string | null;
+}
 
 async function fetchProjects(): Promise<Project[]> {
   const { data } = await apiClient.get<Project[]>('/projects');
@@ -38,29 +44,61 @@ async function fetchStaff(): Promise<UserProfile[]> {
   return data;
 }
 
+async function fetchTeamLeads(): Promise<UserProfile[]> {
+  const { data } = await apiClient.get<UserProfile[]>('/team-leads');
+  return data;
+}
+
+async function fetchProjectTeams(projectId: string): Promise<TeamSummary[]> {
+  const { data } = await apiClient.get<TeamSummary[]>('/teams', { params: { projectId } });
+  return data;
+}
+
 function ProjectFormDialog({
   open,
   project,
   staff,
+  teamLeads,
   onOpenChange,
 }: {
   open: boolean;
   project: Project | null;
   staff: UserProfile[];
+  teamLeads: UserProfile[];
   onOpenChange: (open: boolean) => void;
 }) {
   const queryClient = useQueryClient();
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [directStaffId, setDirectStaffId] = React.useState<string>(NONE);
+  const [selectedTeamLeadIds, setSelectedTeamLeadIds] = React.useState<string[]>([]);
+
+  const projectTeamsQuery = useQuery({
+    queryKey: ['project-teams', project?.id],
+    queryFn: () => fetchProjectTeams(project!.id),
+    enabled: open && !!project,
+  });
 
   React.useEffect(() => {
     if (open) {
       setName(project?.name ?? '');
       setDescription(project?.description ?? '');
       setDirectStaffId(project?.direct_staff_id ?? NONE);
+      setSelectedTeamLeadIds([]);
     }
   }, [open, project]);
+
+  // Pre-check whichever team leads already have a team on this project, once that loads.
+  React.useEffect(() => {
+    if (projectTeamsQuery.data) {
+      const ids = projectTeamsQuery.data.map((t) => t.team_lead_id).filter((id): id is string => Boolean(id));
+      setSelectedTeamLeadIds(Array.from(new Set(ids)));
+    }
+  }, [projectTeamsQuery.data]);
+
+  const toggleTeamLead = (id: string, checked: boolean) => {
+    setSelectedTeamLeadIds((prev) => (checked ? [...prev, id] : prev.filter((tlId) => tlId !== id)));
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -68,6 +106,7 @@ function ProjectFormDialog({
         name,
         description: description || null,
         directStaffId: directStaffId === NONE ? null : directStaffId,
+        teamLeadIds: selectedTeamLeadIds,
       };
       if (project) {
         await apiClient.patch(`/projects/${project.id}`, payload);
@@ -113,6 +152,26 @@ function ProjectFormDialog({
             />
           </div>
           <div className="space-y-2">
+            <Label>Team leads</Label>
+            <div className="max-h-40 space-y-2 overflow-y-auto rounded-md border p-3">
+              {teamLeads.length === 0 && (
+                <p className="text-xs text-muted-foreground">No team leads available.</p>
+              )}
+              {teamLeads.map((tl) => (
+                <label key={tl.id} className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={selectedTeamLeadIds.includes(tl.id)}
+                    onCheckedChange={(checked) => toggleTeamLead(tl.id, !!checked)}
+                  />
+                  {tl.full_name}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Each selected team lead's staff join this project's round-robin pool.
+            </p>
+          </div>
+          <div className="space-y-2">
             <Label>Direct-to-staff routing</Label>
             <Select value={directStaffId} onValueChange={setDirectStaffId}>
               <SelectTrigger>
@@ -153,9 +212,11 @@ export function ProjectsPage() {
 
   const projectsQuery = useQuery({ queryKey: ['projects'], queryFn: fetchProjects });
   const staffQuery = useQuery({ queryKey: ['users', 'staff'], queryFn: fetchStaff });
+  const teamLeadsQuery = useQuery({ queryKey: ['team-leads'], queryFn: fetchTeamLeads });
 
   const projects = projectsQuery.data ?? [];
   const staff = staffQuery.data ?? [];
+  const teamLeads = teamLeadsQuery.data ?? [];
   const staffById = React.useMemo(() => new Map(staff.map((s) => [s.id, s.full_name])), [staff]);
 
   const toggleActiveMutation = useMutation({
@@ -249,7 +310,13 @@ export function ProjectsPage() {
         ))}
       </div>
 
-      <ProjectFormDialog open={formOpen} project={editingProject} staff={staff} onOpenChange={setFormOpen} />
+      <ProjectFormDialog
+        open={formOpen}
+        project={editingProject}
+        staff={staff}
+        teamLeads={teamLeads}
+        onOpenChange={setFormOpen}
+      />
     </div>
   );
 }
