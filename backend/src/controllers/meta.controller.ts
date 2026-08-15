@@ -153,6 +153,13 @@ export async function getAdHierarchy(req: Request, res: Response) {
   res.json(await metaIntegration.getAdHierarchy(projectId));
 }
 
+/** PATCH /campaigns/:id/routing — admin-only. Body: { directStaffId?, directTeamLeadId? } (either, null to clear). */
+export async function setCampaignRouting(req: Request, res: Response) {
+  const { directStaffId, directTeamLeadId } = req.body ?? {};
+  await metaIntegration.setCampaignRouting(req.params.id, { directStaffId, directTeamLeadId });
+  res.json({ ok: true });
+}
+
 // ---------------------------------------------------------------------------
 // Webhook (called by Meta directly)
 // ---------------------------------------------------------------------------

@@ -631,6 +631,9 @@ export interface AdHierarchyNode {
   externalId: string;
   name: string | null;
   status: string | null;
+  /** Only populated on campaign-level nodes. */
+  directStaffId?: string | null;
+  directTeamLeadId?: string | null;
   children?: AdHierarchyNode[];
 }
 
@@ -678,6 +681,8 @@ export async function getAdHierarchy(projectId: string): Promise<{
           externalId: campaign.campaign_id,
           name: campaign.name,
           status: campaign.status,
+          directStaffId: campaign.direct_staff_id ?? null,
+          directTeamLeadId: campaign.direct_team_lead_id ?? null,
           children: adSets
             .filter((s) => s.campaign_id === campaign.id)
             .map((adSet) => ({
@@ -846,13 +851,59 @@ export async function processLeadgenEvent(leadgenId: string, pageId?: string, fo
 
   await touchLastSynced(target.projectId);
 
+  // Route by the campaign this lead came from, if an admin has set one up —
+  // works off the raw Meta campaign_id text (details.campaignId), so it
+  // doesn't require the admin to have run "Sync campaigns" first, only to
+  // have set routing on that campaign's row after it's synced at least once.
+  const campaignRouting = await getCampaignRoutingByRef(details.campaignId);
+
   // Round-robin auto-assignment (notifies the chosen staff member itself);
   // only fall back to notifying admins when nobody was available.
-  const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id);
+  const assigned = await autoAssignLead(lead.id, lead.name, lead.project_id, campaignRouting ?? undefined);
   if (!assigned) {
     await notifyAdminsOfUnassignedLead(lead.id, lead.name, 'Meta Ads');
   }
   return true;
+}
+
+/** Looks up per-campaign routing (direct_staff_id/direct_team_lead_id) by Meta's raw campaign_id text — null if the campaign hasn't been synced yet or has no routing set. */
+async function getCampaignRoutingByRef(
+  campaignRef: string | undefined,
+): Promise<{ directStaffId: string | null; directTeamLeadId: string | null } | null> {
+  if (!campaignRef) return null;
+
+  const { data } = await supabaseAdmin
+    .from('meta_campaigns')
+    .select('direct_staff_id, direct_team_lead_id')
+    .eq('campaign_id', campaignRef)
+    .maybeSingle();
+
+  if (!data || (!data.direct_staff_id && !data.direct_team_lead_id)) return null;
+
+  return { directStaffId: data.direct_staff_id, directTeamLeadId: data.direct_team_lead_id };
+}
+
+/** Sets or clears a campaign's direct-assignment routing (admin-only, validated at the controller). */
+export async function setCampaignRouting(
+  campaignRowId: string,
+  input: { directStaffId?: string | null; directTeamLeadId?: string | null },
+): Promise<void> {
+  if (input.directStaffId) await assertRole(input.directStaffId, 'staff');
+  if (input.directTeamLeadId) await assertRole(input.directTeamLeadId, 'team_lead');
+
+  const updates: Record<string, unknown> = {};
+  if (input.directStaffId !== undefined) updates.direct_staff_id = input.directStaffId;
+  if (input.directTeamLeadId !== undefined) updates.direct_team_lead_id = input.directTeamLeadId;
+
+  const { error } = await supabaseAdmin.from('meta_campaigns').update(updates).eq('id', campaignRowId);
+  if (error) throw new HttpError(400, error.message);
+}
+
+async function assertRole(userId: string, role: 'staff' | 'team_lead'): Promise<void> {
+  const { data } = await supabaseAdmin.from('users').select('role').eq('id', userId).maybeSingle();
+  if (!data || data.role !== role) {
+    throw new HttpError(400, `Expected a user with the ${role} role`);
+  }
 }
 
 // ---------------------------------------------------------------------------

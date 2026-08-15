@@ -68,8 +68,17 @@ interface AdHierarchyNode {
   externalId: string;
   name: string | null;
   status: string | null;
+  directStaffId?: string | null;
+  directTeamLeadId?: string | null;
   children?: AdHierarchyNode[];
 }
+
+interface RoutableUser {
+  id: string;
+  full_name: string;
+}
+
+const ROUTE_NONE = 'none';
 
 interface AdHierarchyAccount extends AdHierarchyNode {
   currency: string | null;
@@ -414,6 +423,46 @@ function AdAccountsSection({ projectId }: { projectId: string }) {
     },
   });
 
+  const staffQuery = useQuery({
+    queryKey: ['users', 'staff'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<RoutableUser[]>('/users', { params: { role: 'staff' } });
+      return data;
+    },
+  });
+
+  const teamLeadsQuery = useQuery({
+    queryKey: ['team-leads'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<RoutableUser[]>('/team-leads');
+      return data;
+    },
+  });
+
+  const routingMutation = useMutation({
+    mutationFn: async (vars: { campaignId: string; directStaffId: string | null; directTeamLeadId: string | null }) => {
+      await apiClient.patch(`/meta/campaigns/${vars.campaignId}/routing`, {
+        directStaffId: vars.directStaffId,
+        directTeamLeadId: vars.directTeamLeadId,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Campaign routing updated');
+      queryClient.invalidateQueries({ queryKey: ['meta-ad-hierarchy', projectId] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  function handleRouteChange(campaignId: string, value: string) {
+    if (value === ROUTE_NONE) {
+      routingMutation.mutate({ campaignId, directStaffId: null, directTeamLeadId: null });
+    } else if (value.startsWith('staff:')) {
+      routingMutation.mutate({ campaignId, directStaffId: value.slice(6), directTeamLeadId: null });
+    } else if (value.startsWith('teamlead:')) {
+      routingMutation.mutate({ campaignId, directStaffId: null, directTeamLeadId: value.slice(9) });
+    }
+  }
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       const accounts = (liveAccountsQuery.data ?? []).filter((a) => checkedIds.has(a.id));
@@ -617,6 +666,37 @@ function AdAccountsSection({ projectId }: { projectId: string }) {
                           Sync ad sets
                         </Button>
                       </summary>
+                      <div className="mt-2 flex items-center gap-2 pl-1">
+                        <Label className="shrink-0 text-xs text-muted-foreground">Route leads to</Label>
+                        <Select
+                          value={
+                            campaign.directStaffId
+                              ? `staff:${campaign.directStaffId}`
+                              : campaign.directTeamLeadId
+                                ? `teamlead:${campaign.directTeamLeadId}`
+                                : ROUTE_NONE
+                          }
+                          onValueChange={(value) => handleRouteChange(campaign.id, value)}
+                          disabled={routingMutation.isPending}
+                        >
+                          <SelectTrigger className="h-8 max-w-xs text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={ROUTE_NONE}>Round robin (default)</SelectItem>
+                            {(staffQuery.data ?? []).map((s) => (
+                              <SelectItem key={s.id} value={`staff:${s.id}`}>
+                                Staff — {s.full_name}
+                              </SelectItem>
+                            ))}
+                            {(teamLeadsQuery.data ?? []).map((tl) => (
+                              <SelectItem key={tl.id} value={`teamlead:${tl.id}`}>
+                                Team lead — {tl.full_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                       <div className="mt-1 space-y-1 pl-3">
                         {(campaign.children ?? []).length === 0 && (
                           <p className="text-xs text-muted-foreground">No ad sets synced yet.</p>

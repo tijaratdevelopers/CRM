@@ -3,19 +3,26 @@ import { createNotification } from './notifications.service';
 import { logActivity } from '../utils/activityLog';
 
 export interface AutoAssignResult {
-  staffId: string;
+  staffId: string | null;
   teamId: string | null;
   teamLeadId: string | null;
 }
 
+export interface CampaignRouting {
+  directStaffId?: string | null;
+  directTeamLeadId?: string | null;
+}
+
 /**
- * Assigns one lead within its project. If the project has a `direct_staff_id`
- * set (Feature 5 — project routed straight to one staff member), round robin
- * is skipped entirely and the lead goes to that staff member. Otherwise runs
- * the persistent, project-scoped round-robin engine (`assign_lead_round_robin`
- * Postgres function — round_robin_state row locked FOR UPDATE per project),
- * safe under concurrent webhooks / bulk imports / multiple serverless
- * instances and survives restarts and deployments.
+ * Assigns one lead within its project. Precedence, most to least specific:
+ * 1. `campaignRouting` — the Meta campaign this lead came from is routed
+ *    straight to one staff member or one team lead (set on meta_campaigns).
+ * 2. The project's `direct_staff_id` (Feature 5 — whole project routed to one
+ *    staff member).
+ * 3. The persistent, project-scoped round-robin engine
+ *    (`assign_lead_round_robin` Postgres function — round_robin_state row
+ *    locked FOR UPDATE per project), safe under concurrent webhooks / bulk
+ *    imports / multiple serverless instances and survives restarts/deploys.
  *
  * Returns null (never throws) when no active team/staff is available or the
  * RPC fails — lead creation must not break because assignment couldn't run.
@@ -24,7 +31,15 @@ export async function autoAssignLead(
   leadId: string,
   leadName: string,
   projectId: string,
+  campaignRouting?: CampaignRouting,
 ): Promise<AutoAssignResult | null> {
+  if (campaignRouting?.directStaffId) {
+    return assignDirectToStaff(leadId, leadName, campaignRouting.directStaffId);
+  }
+  if (campaignRouting?.directTeamLeadId) {
+    return assignDirectToTeamLead(leadId, leadName, campaignRouting.directTeamLeadId);
+  }
+
   const { data: project } = await supabaseAdmin
     .from('projects')
     .select('direct_staff_id')
@@ -102,6 +117,46 @@ async function assignDirectToStaff(
   });
 
   return { staffId, teamId: null, teamLeadId: null };
+}
+
+/** Tags the lead to a team lead directly (no staff pick) — same semantics as manually assigning a lead to a team lead elsewhere in the app; the team lead distributes it to their own staff from here. */
+async function assignDirectToTeamLead(
+  leadId: string,
+  leadName: string,
+  teamLeadId: string,
+): Promise<AutoAssignResult | null> {
+  const { error } = await supabaseAdmin
+    .from('leads')
+    .update({
+      assigned_team_lead_id: teamLeadId,
+      status: 'assigned',
+      assignment_rule_used: 'direct_team_lead',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', leadId);
+
+  if (error) {
+    console.error(`Direct team-lead assignment failed for lead ${leadId}:`, error.message);
+    return null;
+  }
+
+  await createNotification({
+    userId: teamLeadId,
+    type: 'lead_assigned',
+    title: 'New lead assigned',
+    body: leadName,
+    payload: { leadId, autoAssigned: true },
+  });
+
+  await logActivity({
+    actorId: null,
+    entityType: 'lead',
+    entityId: leadId,
+    action: 'direct_assigned',
+    metadata: { teamLeadId, engine: 'direct_campaign_assignment' },
+  });
+
+  return { staffId: null, teamId: null, teamLeadId };
 }
 
 export interface DistributionState {
