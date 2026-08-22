@@ -101,6 +101,10 @@ export default {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
         },
+        sway: {
+          '0%, 100%': { transform: 'translateY(0px) rotate(-2deg)' },
+          '50%': { transform: 'translateY(-14px) rotate(2deg)' },
+        },
       },
       animation: {
         blob: 'blob 12s infinite ease-in-out',
@@ -116,6 +120,7 @@ export default {
         'pulse-glow-orange': 'pulse-glow-orange 3.5s ease-in-out infinite',
         'pulse-glow-red': 'pulse-glow-red 3.5s ease-in-out infinite',
         'building-float': 'building-float 5s ease-in-out infinite',
+        sway: 'sway 7s ease-in-out infinite',
       },
     },
   },

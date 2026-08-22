@@ -1,8 +1,8 @@
 import { DashboardRobotMascot } from './DashboardRobotMascot';
 
-/** A prominent, dedicated stage for the spinning robot mascot — sized so the
- * full figure and its 360° turn are clearly visible, instead of being
- * squeezed into a small corner icon slot. */
+/** A prominent, dedicated stage for the robot mascot — sized so the full
+ * figure reads clearly, instead of being squeezed into a small corner icon
+ * slot. */
 export function DashboardRobotShowcase() {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-neutral-900 via-neutral-950 to-black shadow-lg animate-fade-in-up">
