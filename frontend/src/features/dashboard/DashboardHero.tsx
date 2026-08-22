@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardHeroScene } from './DashboardHeroScene';
-import { DashboardRobotMascot } from './DashboardRobotMascot';
 
 interface DashboardHeroProps {
   eyebrow: string;
@@ -24,15 +23,10 @@ export function DashboardHero({ eyebrow, title, subtitle, gradient }: DashboardH
       <DashboardHeroScene />
       <span className="sheen-overlay rounded-2xl" />
 
-      <div className="relative z-10 flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{eyebrow}</p>
-          <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
-          <p className="mt-2 max-w-xl text-sm text-white/80">{subtitle}</p>
-        </div>
-        <div className="hidden h-24 w-24 shrink-0 sm:block sm:h-28 sm:w-28">
-          <DashboardRobotMascot />
-        </div>
+      <div className="relative z-10">
+        <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{eyebrow}</p>
+        <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
+        <p className="mt-2 max-w-xl text-sm text-white/80">{subtitle}</p>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
+import { DashboardRobotShowcase } from '@/features/dashboard/DashboardRobotShowcase';
 
 interface TeamLeadSummary {
   assigned_staff: number;
@@ -49,6 +50,8 @@ export function TeamLeadDashboard() {
         subtitle="Fresh leads land on your team automatically. Watch follow-ups, meetings and conversions move in real time."
         gradient="bg-gradient-to-br from-stone-900 via-neutral-800 to-yellow-700"
       />
+
+      <DashboardRobotShowcase />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">

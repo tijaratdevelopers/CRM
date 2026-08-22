@@ -7,6 +7,7 @@ import { useProject } from '@/features/projects/ProjectContext';
 import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
+import { DashboardRobotShowcase } from '@/features/dashboard/DashboardRobotShowcase';
 
 interface AdminSummary {
   total_leads: number;
@@ -65,6 +66,8 @@ export function AdminDashboard() {
         subtitle="Every lead from Meta Ads, WhatsApp and your campaigns — captured, auto-distributed to your teams, and tracked to the close. Nothing slips through."
         gradient="bg-gradient-to-br from-neutral-900 via-stone-800 to-amber-700"
       />
+
+      <DashboardRobotShowcase />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
