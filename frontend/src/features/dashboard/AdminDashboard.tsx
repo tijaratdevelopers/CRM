@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutGrid, Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle, Loader } from 'lucide-react';
+import { Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
@@ -64,7 +64,6 @@ export function AdminDashboard() {
         title={`Welcome back${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} — your business at a glance`}
         subtitle="Every lead from Meta Ads, WhatsApp and your campaigns — captured, auto-distributed to your teams, and tracked to the close. Nothing slips through."
         gradient="bg-gradient-to-br from-neutral-900 via-stone-800 to-amber-700"
-        icon={<LayoutGrid className="h-8 w-8" />}
       />
 
       {isLoading ? (

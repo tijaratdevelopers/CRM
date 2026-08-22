@@ -13,13 +13,14 @@ import type {
   CallLog,
   FollowUp,
   Lead,
+  LeadLostReason,
   LeadPriority,
   LeadStatus,
   Meeting,
   PaginatedResponse,
   UserProfile,
 } from '@/types';
-import { LEAD_PRIORITIES, LEAD_STATUSES } from '@/types';
+import { LEAD_LOST_REASONS, LEAD_PRIORITIES, LEAD_STATUSES } from '@/types';
 
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -327,6 +328,88 @@ function BookingDialog({
   );
 }
 
+function LostReasonDialog({
+  open,
+  onOpenChange,
+  leadId,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  leadId: string;
+}) {
+  const queryClient = useQueryClient();
+  const [reason, setReason] = React.useState<LeadLostReason | ''>('');
+  const [note, setNote] = React.useState('');
+
+  React.useEffect(() => {
+    if (open) {
+      setReason('');
+      setNote('');
+    }
+  }, [open]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.patch<Lead>(`/leads/${leadId}`, {
+        status: 'lost',
+        lostReason: reason,
+        lostReasonNote: reason === 'other' ? note.trim() : undefined,
+      });
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(['lead', leadId], data);
+      queryClient.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Lead marked as Lost');
+      onOpenChange(false);
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const canSubmit = reason !== '' && (reason !== 'other' || note.trim().length > 0);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Mark Lead as Lost</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="lost-reason">Reason *</Label>
+            <Select value={reason} onValueChange={(value) => setReason(value as LeadLostReason)}>
+              <SelectTrigger id="lost-reason">
+                <SelectValue placeholder="Select a reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {LEAD_LOST_REASONS.map((r) => (
+                  <SelectItem key={r.value} value={r.value}>
+                    {r.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {reason === 'other' && (
+            <div className="space-y-1.5">
+              <Label htmlFor="lost-reason-note">Please describe *</Label>
+              <Textarea id="lost-reason-note" value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button disabled={!canSubmit || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+            {saveMutation.isPending ? 'Saving…' : 'Mark as Lost'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -351,6 +434,7 @@ export function LeadDetailPage() {
   const [assignedTeamLeadId, setAssignedTeamLeadId] = React.useState('none');
   const [editInfoOpen, setEditInfoOpen] = React.useState(false);
   const [bookingDialogOpen, setBookingDialogOpen] = React.useState(false);
+  const [lostReasonDialogOpen, setLostReasonDialogOpen] = React.useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -534,6 +618,12 @@ export function LeadDetailPage() {
               <p>
                 Location: {[lead.city, lead.country].filter(Boolean).join(', ') || '—'}
               </p>
+              {lead.status === 'lost' && lead.lost_reason && (
+                <p>
+                  Lost reason: {LEAD_LOST_REASONS.find((r) => r.value === lead.lost_reason)?.label ?? formatLabel(lead.lost_reason)}
+                  {lead.lost_reason === 'other' && lead.lost_reason_note ? ` — ${lead.lost_reason_note}` : ''}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex flex-wrap items-start gap-2">
@@ -564,6 +654,8 @@ export function LeadDetailPage() {
               onValueChange={(value) => {
                 if (value === 'won') {
                   setBookingDialogOpen(true);
+                } else if (value === 'lost') {
+                  setLostReasonDialogOpen(true);
                 } else {
                   patchMutation.mutate({ status: value as LeadStatus });
                 }
@@ -867,6 +959,7 @@ export function LeadDetailPage() {
 
       <EditLeadInfoDialog open={editInfoOpen} onOpenChange={setEditInfoOpen} lead={lead} />
       <BookingDialog open={bookingDialogOpen} onOpenChange={setBookingDialogOpen} leadId={lead.id} />
+      <LostReasonDialog open={lostReasonDialogOpen} onOpenChange={setLostReasonDialogOpen} leadId={lead.id} />
     </div>
   );
 }

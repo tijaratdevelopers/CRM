@@ -1,16 +1,16 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 import { DashboardHeroScene } from './DashboardHeroScene';
+import { DashboardRobotMascot } from './DashboardRobotMascot';
 
 interface DashboardHeroProps {
   eyebrow: string;
   title: string;
   subtitle: string;
   gradient: string;
-  icon: React.ReactNode;
 }
 
-export function DashboardHero({ eyebrow, title, subtitle, gradient, icon }: DashboardHeroProps) {
+export function DashboardHero({ eyebrow, title, subtitle, gradient }: DashboardHeroProps) {
   return (
     <div
       className={cn(
@@ -30,8 +30,8 @@ export function DashboardHero({ eyebrow, title, subtitle, gradient, icon }: Dash
           <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
           <p className="mt-2 max-w-xl text-sm text-white/80">{subtitle}</p>
         </div>
-        <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm sm:flex">
-          {icon}
+        <div className="hidden h-24 w-24 shrink-0 sm:block sm:h-28 sm:w-28">
+          <DashboardRobotMascot />
         </div>
       </div>
     </div>

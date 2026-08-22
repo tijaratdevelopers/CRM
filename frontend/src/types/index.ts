@@ -18,6 +18,23 @@ export type LeadStatus =
 
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type LeadLostReason =
+  | 'price_issue'
+  | 'no_response'
+  | 'competitor'
+  | 'not_interested'
+  | 'invalid_lead'
+  | 'other';
+
+export const LEAD_LOST_REASONS: { value: LeadLostReason; label: string }[] = [
+  { value: 'price_issue', label: 'Price issue' },
+  { value: 'no_response', label: 'No response' },
+  { value: 'competitor', label: 'Competitor' },
+  { value: 'not_interested', label: 'Not interested' },
+  { value: 'invalid_lead', label: 'Invalid lead' },
+  { value: 'other', label: 'Other' },
+];
+
 export const LEAD_STATUSES: LeadStatus[] = [
   'new',
   'assigned',
@@ -123,6 +140,8 @@ export interface Lead {
   priority: LeadPriority;
   tags: string[];
   notes: string | null;
+  lost_reason: LeadLostReason | null;
+  lost_reason_note: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

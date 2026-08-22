@@ -27,6 +27,14 @@ export type LeadStatus =
 
 export type LeadPriority = 'low' | 'medium' | 'high' | 'urgent';
 
+export type LeadLostReason =
+  | 'price_issue'
+  | 'no_response'
+  | 'competitor'
+  | 'not_interested'
+  | 'invalid_lead'
+  | 'other';
+
 declare global {
   namespace Express {
     interface Request {

@@ -6,7 +6,7 @@ import { logActivity } from '../utils/activityLog';
 import { applyLeadScope } from '../utils/scope';
 import { createNotification } from './notifications.service';
 import { autoAssignLead } from './assignment.service';
-import { AuthUser, LeadPriority, LeadStatus } from '../types';
+import { AuthUser, LeadLostReason, LeadPriority, LeadStatus } from '../types';
 
 export interface Lead {
   id: string;
@@ -27,6 +27,8 @@ export interface Lead {
   priority: LeadPriority;
   tags: string[];
   notes: string | null;
+  lost_reason: LeadLostReason | null;
+  lost_reason_note: string | null;
   created_by: string | null;
   last_modified_by: string | null;
   created_at: string;
@@ -88,6 +90,8 @@ export interface UpdateLeadInput {
   priority?: LeadPriority;
   tags?: string[];
   notes?: string;
+  lostReason?: LeadLostReason;
+  lostReasonNote?: string;
 }
 
 export interface AssignLeadInput {
@@ -95,7 +99,14 @@ export interface AssignLeadInput {
   assignedTeamLeadId?: string | null;
 }
 
-const STAFF_EDITABLE_FIELDS: (keyof UpdateLeadInput)[] = ['status', 'priority', 'tags', 'notes'];
+const STAFF_EDITABLE_FIELDS: (keyof UpdateLeadInput)[] = [
+  'status',
+  'priority',
+  'tags',
+  'notes',
+  'lostReason',
+  'lostReasonNote',
+];
 
 /** Admin sees all leads; team_lead sees their team's leads; staff sees only their own. */
 export async function listLeads(
@@ -231,6 +242,15 @@ export async function updateLead(user: AuthUser, id: string, patch: UpdateLeadIn
     }
   }
 
+  if (patch.status === 'lost') {
+    if (!patch.lostReason) {
+      throw new HttpError(400, 'A reason is required when marking a lead as Lost');
+    }
+    if (patch.lostReason === 'other' && !patch.lostReasonNote?.trim()) {
+      throw new HttpError(400, 'Please describe the reason when selecting "Other"');
+    }
+  }
+
   const updates: Record<string, unknown> = { last_modified_by: user.id };
   if (patch.name !== undefined) updates.name = patch.name;
   if (patch.phone !== undefined) updates.phone = patch.phone;
@@ -247,6 +267,14 @@ export async function updateLead(user: AuthUser, id: string, patch: UpdateLeadIn
   if (patch.priority !== undefined) updates.priority = patch.priority;
   if (patch.tags !== undefined) updates.tags = patch.tags;
   if (patch.notes !== undefined) updates.notes = patch.notes;
+  if (patch.status === 'lost') {
+    updates.lost_reason = patch.lostReason;
+    updates.lost_reason_note = patch.lostReason === 'other' ? patch.lostReasonNote?.trim() : null;
+  } else if (patch.status !== undefined) {
+    // Moving off "Lost" onto any other status — clear the stale reason.
+    updates.lost_reason = null;
+    updates.lost_reason_note = null;
+  }
 
   const updated = unwrap(
     await supabaseAdmin.from('leads').update(updates).eq('id', id).select().single(),
