@@ -4,7 +4,6 @@ import { AdminDashboard } from '@/features/dashboard/AdminDashboard';
 import { TeamLeadDashboard } from '@/features/dashboard/TeamLeadDashboard';
 import { StaffDashboard } from '@/features/dashboard/StaffDashboard';
 import { InProgressLeads } from '@/features/dashboard/InProgressLeads';
-import { ThemeToggle } from '@/features/dashboard/ThemeToggle';
 import { FullScreenLoader } from '@/components/FullScreenLoader';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -32,17 +31,14 @@ export function DashboardPage() {
 
   return (
     <Tabs defaultValue="overview">
-      <div className="flex items-center justify-between gap-3">
-        <TabsList>
-          <TabsTrigger value="overview" className="gap-1.5">
-            <LayoutGrid className="h-3.5 w-3.5" /> Overview
-          </TabsTrigger>
-          <TabsTrigger value="in-progress" className="gap-1.5">
-            <Loader className="h-3.5 w-3.5" /> In Progress Leads
-          </TabsTrigger>
-        </TabsList>
-        <ThemeToggle />
-      </div>
+      <TabsList>
+        <TabsTrigger value="overview" className="gap-1.5">
+          <LayoutGrid className="h-3.5 w-3.5" /> Overview
+        </TabsTrigger>
+        <TabsTrigger value="in-progress" className="gap-1.5">
+          <Loader className="h-3.5 w-3.5" /> In Progress Leads
+        </TabsTrigger>
+      </TabsList>
       <TabsContent value="overview" className="mt-4">
         {dashboard}
       </TabsContent>

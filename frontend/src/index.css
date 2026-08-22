@@ -133,6 +133,15 @@
   .stat-tilt.is-red::before {
     background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(197, 32, 32, 0.22), transparent 62%);
   }
+  .stat-tilt.is-blue::before {
+    background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(37, 99, 235, 0.22), transparent 62%);
+  }
+  .stat-tilt.is-purple::before {
+    background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(124, 58, 237, 0.22), transparent 62%);
+  }
+  .stat-tilt.is-green::before {
+    background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(5, 150, 105, 0.22), transparent 62%);
+  }
   .stat-tilt:hover::before {
     opacity: 1;
   }
@@ -152,6 +161,15 @@
   }
   .group:hover .stat-icon-3d.tone-red {
     box-shadow: 0 0 0 6px rgba(197, 32, 32, 0.14), 0 0 20px 4px rgba(197, 32, 32, 0.4);
+  }
+  .group:hover .stat-icon-3d.tone-blue {
+    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.14), 0 0 20px 4px rgba(37, 99, 235, 0.4);
+  }
+  .group:hover .stat-icon-3d.tone-purple {
+    box-shadow: 0 0 0 6px rgba(124, 58, 237, 0.14), 0 0 20px 4px rgba(124, 58, 237, 0.4);
+  }
+  .group:hover .stat-icon-3d.tone-green {
+    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0.14), 0 0 20px 4px rgba(5, 150, 105, 0.4);
   }
 
   @media (prefers-reduced-motion: reduce) {

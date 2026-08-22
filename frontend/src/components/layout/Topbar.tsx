@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, Menu, User } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, Menu, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
@@ -33,6 +33,7 @@ import {
 import { PasswordField } from '@/components/PasswordField';
 import { Badge } from '@/components/ui/badge';
 import { NotificationBell } from '@/features/notifications/NotificationBell';
+import { ThemeToggle } from '@/features/dashboard/ThemeToggle';
 import { GlobalSearch } from './GlobalSearch';
 
 function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -166,6 +167,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
       <div className="flex items-center gap-2">
         <ProjectSwitcher />
+        <ThemeToggle />
         <NotificationBell />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent">
@@ -180,6 +182,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 {profile ? ROLE_LABEL[profile.role] : ''}
               </Badge>
             </span>
+            <ChevronDown className="hidden h-3.5 w-3.5 text-muted-foreground sm:block" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>{profile?.email}</DropdownMenuLabel>

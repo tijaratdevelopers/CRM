@@ -79,112 +79,136 @@ function LoadingState() {
   );
 }
 
-export function DashboardCharts() {
+function useDashboardChartsQuery() {
   const { selectedProjectId } = useProject();
-  const { data, isLoading, isError } = useQuery({
+  return useQuery({
     queryKey: ['dashboard-charts', selectedProjectId],
     queryFn: () => fetchDashboardCharts(selectedProjectId),
   });
+}
 
+export function MonthlyLeadsChart({ delay = 0 }: { delay?: number }) {
+  const { data, isLoading, isError } = useDashboardChartsQuery();
+  return (
+    <ChartCard title="Leads Overview" delay={delay}>
+      {isLoading ? (
+        <LoadingState />
+      ) : isError || !data || data.monthlyLeads.length === 0 ? (
+        <EmptyState message="No leads yet" />
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <LineChart data={data.monthlyLeads}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="count"
+              name="Leads"
+              stroke="#f59e0b"
+              strokeWidth={3}
+              dot={{ r: 3, fill: '#f59e0b' }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
+export function LeadSourcesChart({ delay = 0 }: { delay?: number }) {
+  const { data, isLoading, isError } = useDashboardChartsQuery();
+  return (
+    <ChartCard title="Leads by Source" delay={delay}>
+      {isLoading ? (
+        <LoadingState />
+      ) : isError || !data || data.leadSources.length === 0 ? (
+        <EmptyState message="No lead sources yet" />
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <PieChart>
+            <Tooltip />
+            <Legend wrapperStyle={{ fontSize: 12 }} />
+            <Pie
+              data={data.leadSources}
+              dataKey="count"
+              nameKey="source"
+              cx="50%"
+              cy="50%"
+              innerRadius={50}
+              outerRadius={90}
+              label={(entry) => `${entry.source}: ${entry.count}`}
+            >
+              {data.leadSources.map((entry, index) => (
+                <Cell key={entry.source} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
+export function StaffPerformanceChart({ delay = 0 }: { delay?: number }) {
+  const { data, isLoading, isError } = useDashboardChartsQuery();
+  return (
+    <ChartCard title="Staff Performance" delay={delay}>
+      {isLoading ? (
+        <LoadingState />
+      ) : isError || !data || data.staffPerformance.length === 0 ? (
+        <EmptyState message="No staff performance data yet" />
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <BarChart data={data.staffPerformance}>
+            <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            <XAxis dataKey="staff" tick={{ fontSize: 12 }} />
+            <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+            <Tooltip />
+            <Bar dataKey="leadsWon" name="Leads won" fill="#10b981" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
+/** The original 4-chart grid, kept for dashboards that haven't moved to the
+ * new 3-column (chart / robot / donut) layout. */
+export function DashboardCharts() {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <ChartCard title="Monthly Leads">
-        {isLoading ? (
-          <LoadingState />
-        ) : isError || !data || data.monthlyLeads.length === 0 ? (
-          <EmptyState message="No leads yet" />
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={data.monthlyLeads}>
-              <defs>
-                <linearGradient id="leadsLineGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#7c3aed" />
-                  <stop offset="100%" stopColor="#0ea5e9" />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="count"
-                name="Leads"
-                stroke="url(#leadsLineGradient)"
-                strokeWidth={3}
-                dot={{ r: 3, fill: '#7c3aed' }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Lead Sources" delay={80}>
-        {isLoading ? (
-          <LoadingState />
-        ) : isError || !data || data.leadSources.length === 0 ? (
-          <EmptyState message="No lead sources yet" />
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <PieChart>
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Pie
-                data={data.leadSources}
-                dataKey="count"
-                nameKey="source"
-                cx="50%"
-                cy="50%"
-                outerRadius={90}
-                label={(entry) => `${entry.source}: ${entry.count}`}
-              >
-                {data.leadSources.map((entry, index) => (
-                  <Cell key={entry.source} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                ))}
-              </Pie>
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Staff Performance" delay={160}>
-        {isLoading ? (
-          <LoadingState />
-        ) : isError || !data || data.staffPerformance.length === 0 ? (
-          <EmptyState message="No staff performance data yet" />
-        ) : (
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={data.staffPerformance}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-              <XAxis dataKey="staff" tick={{ fontSize: 12 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="leadsWon" name="Leads won" fill="#10b981" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </ChartCard>
-
-      <ChartCard title="Conversion Rate" delay={240}>
-        {isLoading ? (
-          <LoadingState />
-        ) : isError || !data ? (
-          <EmptyState message="No conversion data yet" />
-        ) : (
-          <div className="flex h-[260px] flex-col items-center justify-center gap-4">
-            <p className="bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-500 bg-clip-text text-6xl font-extrabold text-transparent">
-              {data.conversionRate.toFixed(1)}%
-            </p>
-            <p className="text-xs text-muted-foreground">of leads converted to wins</p>
-            <div className="h-2.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-indigo-600 via-violet-600 to-sky-500 bg-[length:200%_200%] animate-gradient-x"
-                style={{ width: `${Math.min(100, Math.max(0, data.conversionRate))}%` }}
-              />
-            </div>
-          </div>
-        )}
-      </ChartCard>
+      <MonthlyLeadsChart />
+      <LeadSourcesChart delay={80} />
+      <StaffPerformanceChart delay={160} />
+      <ConversionRateCard delay={240} />
     </div>
+  );
+}
+
+export function ConversionRateCard({ delay = 0 }: { delay?: number }) {
+  const { data, isLoading, isError } = useDashboardChartsQuery();
+  return (
+    <ChartCard title="Conversion Rate" delay={delay}>
+      {isLoading ? (
+        <LoadingState />
+      ) : isError || !data ? (
+        <EmptyState message="No conversion data yet" />
+      ) : (
+        <div className="flex h-[260px] flex-col items-center justify-center gap-4">
+          <p className="bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 bg-clip-text text-6xl font-extrabold text-transparent">
+            {data.conversionRate.toFixed(1)}%
+          </p>
+          <p className="text-xs text-muted-foreground">of leads converted to wins</p>
+          <div className="h-2.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 bg-[length:200%_200%] animate-gradient-x"
+              style={{ width: `${Math.min(100, Math.max(0, data.conversionRate))}%` }}
+            />
+          </div>
+        </div>
+      )}
+    </ChartCard>
   );
 }

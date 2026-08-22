@@ -97,6 +97,18 @@ export default {
           '0%, 100%': { boxShadow: '0 0 0 0 rgba(197,32,32,0)' },
           '50%': { boxShadow: '0 0 16px 4px rgba(197,32,32,0.45)' },
         },
+        'pulse-glow-blue': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(37,99,235,0)' },
+          '50%': { boxShadow: '0 0 16px 4px rgba(37,99,235,0.45)' },
+        },
+        'pulse-glow-purple': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(124,58,237,0)' },
+          '50%': { boxShadow: '0 0 16px 4px rgba(124,58,237,0.45)' },
+        },
+        'pulse-glow-green': {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(5,150,105,0)' },
+          '50%': { boxShadow: '0 0 16px 4px rgba(5,150,105,0.45)' },
+        },
         'building-float': {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
@@ -119,6 +131,9 @@ export default {
         'pulse-glow': 'pulse-glow 3s ease-in-out infinite',
         'pulse-glow-orange': 'pulse-glow-orange 3.5s ease-in-out infinite',
         'pulse-glow-red': 'pulse-glow-red 3.5s ease-in-out infinite',
+        'pulse-glow-blue': 'pulse-glow-blue 3.5s ease-in-out infinite',
+        'pulse-glow-purple': 'pulse-glow-purple 3.5s ease-in-out infinite',
+        'pulse-glow-green': 'pulse-glow-green 3.5s ease-in-out infinite',
         'building-float': 'building-float 5s ease-in-out infinite',
         sway: 'sway 7s ease-in-out infinite',
       },

@@ -5,10 +5,10 @@ import { DashboardRobotMascot } from './DashboardRobotMascot';
  * slot. */
 export function DashboardRobotShowcase() {
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-neutral-900 via-neutral-950 to-black shadow-lg animate-fade-in-up">
+    <div className="relative flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-neutral-900 via-neutral-950 to-black shadow-lg animate-fade-in-up">
       <div className="pointer-events-none absolute inset-0 bg-grid-pattern opacity-10" />
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-400/10 blur-3xl" />
-      <div className="relative h-64 w-full sm:h-72">
+      <div className="relative flex-1">
         <DashboardRobotMascot />
       </div>
     </div>
