@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-export type StatTone = 'orange' | 'gray' | 'red' | 'blue' | 'purple' | 'green';
+export type StatTone = 'orange' | 'gray' | 'red';
 
 const TONE_STYLES: Record<StatTone, { iconBg: string; barFill: string; borderHover: string }> = {
   orange: {
@@ -20,21 +20,6 @@ const TONE_STYLES: Record<StatTone, { iconBg: string; barFill: string; borderHov
     iconBg: 'bg-[#C52020] animate-pulse-glow-red tone-red',
     barFill: 'from-[#C52020] to-[#EF4444]',
     borderHover: 'hover:border-[#C52020]/40',
-  },
-  blue: {
-    iconBg: 'bg-[#2563EB] animate-pulse-glow-blue tone-blue',
-    barFill: 'from-[#2563EB] to-[#60A5FA]',
-    borderHover: 'hover:border-[#2563EB]/35',
-  },
-  purple: {
-    iconBg: 'bg-[#7C3AED] animate-pulse-glow-purple tone-purple',
-    barFill: 'from-[#7C3AED] to-[#A78BFA]',
-    borderHover: 'hover:border-[#7C3AED]/35',
-  },
-  green: {
-    iconBg: 'bg-[#059669] animate-pulse-glow-green tone-green',
-    barFill: 'from-[#059669] to-[#34D399]',
-    borderHover: 'hover:border-[#059669]/35',
   },
 };
 
@@ -126,7 +111,7 @@ export function StatCard({ label, value, icon, tone = 'orange', hint, index = 0,
       className={cn(
         'group stat-tilt animate-fade-in-up rounded-[15px] border-border/80 shadow-sm shadow-black/[0.03] transition-[border-color,box-shadow] duration-300 hover:shadow-[0_18px_42px_rgba(0,0,0,0.14)] dark:hover:shadow-[0_18px_42px_rgba(0,0,0,0.55)]',
         styles.borderHover,
-        (tone === 'red' || tone === 'blue' || tone === 'purple' || tone === 'green') && `is-${tone}`,
+        tone === 'red' && 'is-red',
         to && 'cursor-pointer active:scale-[0.98]',
       )}
       style={{ animationDelay: `${index * 45}ms` }}
@@ -137,7 +122,7 @@ export function StatCard({ label, value, icon, tone = 'orange', hint, index = 0,
         {icon && (
           <div
             className={cn(
-              'stat-icon-3d mb-3.5 flex h-[42px] w-[42px] items-center justify-center rounded-full text-white shadow-md',
+              'stat-icon-3d mb-3.5 flex h-[42px] w-[42px] items-center justify-center rounded-[11px] text-white shadow-md',
               styles.iconBg,
             )}
           >

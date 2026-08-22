@@ -1,4 +1,5 @@
 import * as React from 'react';
+import * as THREE from 'three';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, Shuffle, Megaphone } from 'lucide-react';
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
+const GOLD = 0xf0a500;
 const BG_COLOR = 0x1a1409;
 
 const HIGHLIGHTS = [
@@ -68,32 +70,137 @@ function GoldSkyline({ tilt }: { tilt: { rx: number; ry: number } }) {
   );
 }
 
-/** Looping video behind the sign-in card, with a dark overlay so the form
- * and heading stay legible over busy footage. Skips playback for users who
- * prefer reduced motion, falling back to the poster frame. */
-function LoginBackgroundVideo() {
-  const videoRef = React.useRef<HTMLVideoElement>(null);
+/** The 3D scene behind the sign-in card: 3500 drifting gold particles, seven wireframe
+ * shapes (torus / icosahedron / octahedron / torus-knot) each rotating and bobbing at
+ * their own pace, and a camera that eases toward the mouse for a subtle parallax feel. */
+function ThreeLoginBackground() {
+  const mountRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (prefersReducedMotion) videoRef.current?.pause();
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(BG_COLOR);
+
+    const camera = new THREE.PerspectiveCamera(60, mount.clientWidth / mount.clientHeight, 0.1, 1000);
+    camera.position.z = 34;
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(mount.clientWidth, mount.clientHeight);
+    mount.appendChild(renderer.domElement);
+
+    const particleCount = 3500;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 90;
+    }
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+      color: GOLD,
+      size: 0.16,
+      transparent: true,
+      opacity: 0.75,
+      sizeAttenuation: true,
+    });
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+
+    const geometries: THREE.BufferGeometry[] = [
+      new THREE.TorusGeometry(4, 1.2, 10, 40),
+      new THREE.IcosahedronGeometry(3.2, 0),
+      new THREE.OctahedronGeometry(3.6, 0),
+      new THREE.TorusKnotGeometry(2.4, 0.75, 100, 16),
+      new THREE.TorusGeometry(3, 0.9, 8, 30),
+      new THREE.IcosahedronGeometry(2.4, 0),
+      new THREE.OctahedronGeometry(2.8, 0),
+    ];
+
+    const shapes = geometries.map((geometry, i) => {
+      const material = new THREE.MeshBasicMaterial({ color: GOLD, wireframe: true, transparent: true, opacity: 0.25 });
+      const mesh = new THREE.Mesh(geometry, material);
+      const angle = (i / geometries.length) * Math.PI * 2;
+      const radius = 15 + (i % 3) * 6;
+      mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.6, (i - geometries.length / 2) * 4);
+      scene.add(mesh);
+      return {
+        mesh,
+        rotSpeedX: 0.002 + Math.random() * 0.006,
+        rotSpeedY: 0.002 + Math.random() * 0.006,
+        bobSpeed: 0.4 + Math.random() * 0.6,
+        bobAmount: 1 + Math.random() * 1.5,
+        baseY: mesh.position.y,
+        phase: Math.random() * Math.PI * 2,
+      };
+    });
+
+    let targetX = 0;
+    let targetY = 0;
+    function handleMouseMove(e: MouseEvent) {
+      const rect = mount!.getBoundingClientRect();
+      targetX = ((e.clientX - rect.left) / rect.width - 0.5) * 2;
+      targetY = ((e.clientY - rect.top) / rect.height - 0.5) * 2;
+    }
+    mount.addEventListener('mousemove', handleMouseMove);
+
+    function handleResize() {
+      if (!mount) return;
+      camera.aspect = mount.clientWidth / mount.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+    }
+    window.addEventListener('resize', handleResize);
+
+    const clock = new THREE.Clock();
+    let frameId: number;
+
+    function animate() {
+      frameId = requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      if (!prefersReducedMotion) {
+        particles.rotation.y += 0.0006;
+        particles.rotation.x += 0.0002;
+
+        for (const s of shapes) {
+          s.mesh.rotation.x += s.rotSpeedX;
+          s.mesh.rotation.y += s.rotSpeedY;
+          s.mesh.position.y = s.baseY + Math.sin(elapsed * s.bobSpeed + s.phase) * s.bobAmount;
+        }
+      }
+
+      camera.position.x += (targetX * 6 - camera.position.x) * 0.03;
+      camera.position.y += (-targetY * 4 - camera.position.y) * 0.03;
+      camera.lookAt(scene.position);
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener('resize', handleResize);
+      mount.removeEventListener('mousemove', handleMouseMove);
+      particleGeometry.dispose();
+      particleMaterial.dispose();
+      for (const s of shapes) {
+        s.mesh.geometry.dispose();
+        (s.mesh.material as THREE.Material).dispose();
+      }
+      renderer.dispose();
+      if (renderer.domElement.parentNode === mount) {
+        mount.removeChild(renderer.domElement);
+      }
+    };
   }, []);
 
-  return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-      <video
-        ref={videoRef}
-        className="h-full w-full object-cover"
-        src="/videos/login-bg.mp4"
-        poster="/videos/login-bg-poster.jpg"
-        autoPlay
-        muted
-        loop
-        playsInline
-      />
-      <div className="absolute inset-0 bg-black/55" />
-    </div>
-  );
+  return <div ref={mountRef} className="pointer-events-none absolute inset-0" aria-hidden="true" />;
 }
 
 function ForgotPasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -218,20 +325,14 @@ export function LoginPage() {
   }
 
   return (
-    <div
-      className="relative flex min-h-screen w-full overflow-hidden font-sans"
-      style={{ background: `#${BG_COLOR.toString(16)}` }}
-    >
-      {/* Video now spans the whole page — both panels sit on top of it. */}
-      <LoginBackgroundVideo />
-
+    <div className="relative flex min-h-screen w-full overflow-hidden bg-background font-sans">
       {/* Left brand panel */}
       <div
         className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex"
         onMouseMove={handlePanelMouseMove}
         onMouseLeave={handlePanelMouseLeave}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/70 via-stone-900/55 to-amber-950/50 bg-[length:200%_200%] animate-gradient-x" />
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-stone-900 to-amber-950 bg-[length:200%_200%] animate-gradient-x" />
         <div className="absolute inset-0 bg-grid-pattern opacity-20" />
 
         {/* animated blobs */}
@@ -289,8 +390,13 @@ export function LoginPage() {
         </p>
       </div>
 
-      {/* Right form panel */}
-      <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2">
+      {/* Right form panel — 3D animated background per spec */}
+      <div
+        className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2"
+        style={{ background: `#${BG_COLOR.toString(16)}` }}
+      >
+        <ThreeLoginBackground />
+
         <div className="relative z-10 flex w-full max-w-sm flex-col items-center text-center animate-fade-in-up">
           <div className="mb-4 lg:hidden">
             <BrandMark size="lg" />

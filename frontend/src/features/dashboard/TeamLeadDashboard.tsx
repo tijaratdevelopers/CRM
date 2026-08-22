@@ -1,12 +1,11 @@
 import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { UserCog, Contact, BellRing, CalendarClock, TrendingUp, TrendingDown, Loader } from 'lucide-react';
+import { UsersRound, UserCog, Contact, BellRing, CalendarClock, TrendingUp, TrendingDown, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
-import { DashboardRobotShowcase } from '@/features/dashboard/DashboardRobotShowcase';
 
 interface TeamLeadSummary {
   assigned_staff: number;
@@ -49,9 +48,8 @@ export function TeamLeadDashboard() {
         title={`Hi${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} — here's your team today`}
         subtitle="Fresh leads land on your team automatically. Watch follow-ups, meetings and conversions move in real time."
         gradient="bg-gradient-to-br from-stone-900 via-neutral-800 to-yellow-700"
+        icon={<UsersRound className="h-8 w-8" />}
       />
-
-      <DashboardRobotShowcase />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">

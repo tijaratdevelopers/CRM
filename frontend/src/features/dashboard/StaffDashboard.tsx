@@ -3,12 +3,11 @@ import type { ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell } from 'recharts';
 import { toast } from 'sonner';
-import { Contact, PhoneCall, CalendarClock, BellRing, Sparkles, Loader } from 'lucide-react';
+import { UserCircle2, Contact, PhoneCall, CalendarClock, BellRing, Sparkles, Loader } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
 import { DashboardHero } from '@/features/dashboard/DashboardHero';
-import { DashboardRobotShowcase } from '@/features/dashboard/DashboardRobotShowcase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -130,9 +129,8 @@ export function StaffDashboard() {
         title={`Good to see you${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}`}
         subtitle="Your leads arrive here automatically — call, follow up, and close. Today's pipeline is ready for you."
         gradient="bg-gradient-to-br from-amber-600 via-amber-700 to-neutral-900"
+        icon={<UserCircle2 className="h-8 w-8" />}
       />
-
-      <DashboardRobotShowcase />
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">

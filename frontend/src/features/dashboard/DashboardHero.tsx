@@ -7,9 +7,10 @@ interface DashboardHeroProps {
   title: string;
   subtitle: string;
   gradient: string;
+  icon: React.ReactNode;
 }
 
-export function DashboardHero({ eyebrow, title, subtitle, gradient }: DashboardHeroProps) {
+export function DashboardHero({ eyebrow, title, subtitle, gradient, icon }: DashboardHeroProps) {
   return (
     <div
       className={cn(
@@ -23,10 +24,15 @@ export function DashboardHero({ eyebrow, title, subtitle, gradient }: DashboardH
       <DashboardHeroScene />
       <span className="sheen-overlay rounded-2xl" />
 
-      <div className="relative z-10">
-        <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{eyebrow}</p>
-        <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
-        <p className="mt-2 max-w-xl text-sm text-white/80">{subtitle}</p>
+      <div className="relative z-10 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{eyebrow}</p>
+          <h1 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h1>
+          <p className="mt-2 max-w-xl text-sm text-white/80">{subtitle}</p>
+        </div>
+        <div className="hidden h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/15 backdrop-blur-sm sm:flex">
+          {icon}
+        </div>
       </div>
     </div>
   );
