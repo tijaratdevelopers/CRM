@@ -218,14 +218,20 @@ export function LoginPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen w-full overflow-hidden bg-background font-sans">
+    <div
+      className="relative flex min-h-screen w-full overflow-hidden font-sans"
+      style={{ background: `#${BG_COLOR.toString(16)}` }}
+    >
+      {/* Video now spans the whole page — both panels sit on top of it. */}
+      <LoginBackgroundVideo />
+
       {/* Left brand panel */}
       <div
         className="relative hidden w-1/2 flex-col justify-between overflow-hidden p-10 text-white lg:flex"
         onMouseMove={handlePanelMouseMove}
         onMouseLeave={handlePanelMouseLeave}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950 via-stone-900 to-amber-950 bg-[length:200%_200%] animate-gradient-x" />
+        <div className="absolute inset-0 bg-gradient-to-br from-neutral-950/70 via-stone-900/55 to-amber-950/50 bg-[length:200%_200%] animate-gradient-x" />
         <div className="absolute inset-0 bg-grid-pattern opacity-20" />
 
         {/* animated blobs */}
@@ -283,13 +289,8 @@ export function LoginPage() {
         </p>
       </div>
 
-      {/* Right form panel — 3D animated background per spec */}
-      <div
-        className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2"
-        style={{ background: `#${BG_COLOR.toString(16)}` }}
-      >
-        <LoginBackgroundVideo />
-
+      {/* Right form panel */}
+      <div className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2">
         <div className="relative z-10 flex w-full max-w-sm flex-col items-center text-center animate-fade-in-up">
           <div className="mb-4 lg:hidden">
             <BrandMark size="lg" />
