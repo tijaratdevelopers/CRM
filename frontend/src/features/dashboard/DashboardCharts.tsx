@@ -2,8 +2,8 @@ import type * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   PieChart,
@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
 import { apiClient } from '@/lib/apiClient';
 import { useProject } from '@/features/projects/ProjectContext';
@@ -52,11 +51,24 @@ async function fetchDashboardCharts(projectId: string | null): Promise<Dashboard
   return data;
 }
 
-function ChartCard({ title, children, delay = 0 }: { title: string; children: React.ReactNode; delay?: number }) {
+function ChartCard({
+  title,
+  children,
+  delay = 0,
+  badge,
+}: {
+  title: string;
+  children: React.ReactNode;
+  delay?: number;
+  badge?: string;
+}) {
   return (
     <Card className="animate-fade-in-up transition-shadow hover:shadow-md" style={{ animationDelay: `${delay}ms` }}>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
         <CardTitle className="text-sm font-semibold text-foreground">{title}</CardTitle>
+        {badge && (
+          <span className="rounded-full bg-amber-500 px-2.5 py-1 text-xs font-bold text-black">{badge}</span>
+        )}
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -89,28 +101,39 @@ function useDashboardChartsQuery() {
 
 export function MonthlyLeadsChart({ delay = 0 }: { delay?: number }) {
   const { data, isLoading, isError } = useDashboardChartsQuery();
+  const points = data?.monthlyLeads ?? [];
+  const last = points[points.length - 1];
+
   return (
-    <ChartCard title="Leads Overview" delay={delay}>
+    <ChartCard title="Leads Overview" delay={delay} badge={last ? last.count.toLocaleString() : undefined}>
       {isLoading ? (
         <LoadingState />
-      ) : isError || !data || data.monthlyLeads.length === 0 ? (
+      ) : isError || !data || points.length === 0 ? (
         <EmptyState message="No leads yet" />
       ) : (
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={data.monthlyLeads}>
+          <AreaChart data={points} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <defs>
+              <linearGradient id="leadsAreaFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#f59e0b" stopOpacity={0} />
+              </linearGradient>
+            </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
             <XAxis dataKey="month" tick={{ fontSize: 12 }} />
             <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
             <Tooltip />
-            <Line
+            <Area
               type="monotone"
               dataKey="count"
               name="Leads"
               stroke="#f59e0b"
               strokeWidth={3}
+              fill="url(#leadsAreaFill)"
               dot={{ r: 3, fill: '#f59e0b' }}
+              activeDot={{ r: 5 }}
             />
-          </LineChart>
+          </AreaChart>
         </ResponsiveContainer>
       )}
     </ChartCard>
@@ -119,33 +142,42 @@ export function MonthlyLeadsChart({ delay = 0 }: { delay?: number }) {
 
 export function LeadSourcesChart({ delay = 0 }: { delay?: number }) {
   const { data, isLoading, isError } = useDashboardChartsQuery();
+  const sources = data?.leadSources ?? [];
+  const total = sources.reduce((sum, s) => sum + s.count, 0);
+
   return (
     <ChartCard title="Leads by Source" delay={delay}>
       {isLoading ? (
         <LoadingState />
-      ) : isError || !data || data.leadSources.length === 0 ? (
+      ) : isError || !data || sources.length === 0 ? (
         <EmptyState message="No lead sources yet" />
       ) : (
-        <ResponsiveContainer width="100%" height={260}>
-          <PieChart>
-            <Tooltip />
-            <Legend wrapperStyle={{ fontSize: 12 }} />
-            <Pie
-              data={data.leadSources}
-              dataKey="count"
-              nameKey="source"
-              cx="50%"
-              cy="50%"
-              innerRadius={50}
-              outerRadius={90}
-              label={(entry) => `${entry.source}: ${entry.count}`}
-            >
-              {data.leadSources.map((entry, index) => (
-                <Cell key={entry.source} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
+        <div className="flex items-center gap-4">
+          <ResponsiveContainer width="60%" height={220}>
+            <PieChart>
+              <Tooltip />
+              <Pie data={sources} dataKey="count" nameKey="source" cx="50%" cy="50%" innerRadius={45} outerRadius={80}>
+                {sources.map((entry, index) => (
+                  <Cell key={entry.source} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                ))}
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex-1 space-y-2">
+            {sources.map((entry, index) => (
+              <div key={entry.source} className="flex items-center gap-2 text-sm">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }}
+                />
+                <span className="min-w-0 flex-1 truncate text-foreground">{entry.source}</span>
+                <span className="shrink-0 font-semibold text-muted-foreground">
+                  {total > 0 ? Math.round((entry.count / total) * 100) : 0}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </ChartCard>
   );

@@ -117,6 +117,10 @@ export default {
           '0%, 100%': { transform: 'translateY(0px) rotate(-2deg)' },
           '50%': { transform: 'translateY(-14px) rotate(2deg)' },
         },
+        'spin-y': {
+          '0%': { transform: 'rotateY(0deg)' },
+          '100%': { transform: 'rotateY(360deg)' },
+        },
       },
       animation: {
         blob: 'blob 12s infinite ease-in-out',
@@ -136,6 +140,7 @@ export default {
         'pulse-glow-green': 'pulse-glow-green 3.5s ease-in-out infinite',
         'building-float': 'building-float 5s ease-in-out infinite',
         sway: 'sway 7s ease-in-out infinite',
+        'spin-y': 'spin-y 9s linear infinite',
       },
     },
   },

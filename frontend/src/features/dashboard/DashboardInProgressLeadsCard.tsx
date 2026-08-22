@@ -6,20 +6,25 @@ import type { Lead, LeadSource, LeadStatus, PaginatedResponse } from '@/types';
 import { IN_PROGRESS_STATUSES } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 const PREVIEW_SIZE = 4;
 
-function statusBadgeVariant(status: LeadStatus): NonNullable<BadgeProps['variant']> {
+function statusPillClass(status: LeadStatus): string {
   switch (status) {
-    case 'negotiation':
+    case 'contacted':
+      return 'bg-orange-500/15 text-orange-500';
+    case 'follow_up':
+      return 'bg-blue-500/15 text-blue-500';
+    case 'meeting_scheduled':
+      return 'bg-indigo-500/15 text-indigo-400';
     case 'proposal_sent':
-      return 'warning';
-    case 'assigned':
-      return 'outline';
+    case 'quotation_sent':
+    case 'negotiation':
+      return 'bg-emerald-500/15 text-emerald-500';
     default:
-      return 'secondary';
+      return 'bg-muted text-muted-foreground';
   }
 }
 
@@ -99,9 +104,14 @@ export function DashboardInProgressLeadsCard({ delay = 0 }: { delay?: number }) 
                   {lead.source_id ? sourceMap.get(lead.source_id) ?? '—' : '—'}
                 </p>
               </div>
-              <Badge variant={statusBadgeVariant(lead.status)} className="shrink-0">
+              <span
+                className={cn(
+                  'shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold',
+                  statusPillClass(lead.status),
+                )}
+              >
                 {formatLabel(lead.status)}
-              </Badge>
+              </span>
             </Link>
           ))
         )}
