@@ -22,7 +22,7 @@ export function DashboardRobot() {
 
   return (
     <div className="relative flex h-full w-full items-stretch justify-center">
-      <div className="pointer-events-none absolute inset-0 rounded-full bg-sky-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 rounded-full bg-amber-500/10 blur-3xl" />
       <div className="relative w-full min-w-0 overflow-hidden rounded-2xl">
         <video
           ref={videoRef}

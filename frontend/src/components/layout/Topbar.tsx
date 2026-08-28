@@ -186,8 +186,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         <ThemeIconToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent">
-            <Avatar className="h-8 w-8 ring-2 ring-sky-500/40 transition-transform hover:scale-105">
-              <AvatarFallback className="bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 text-white">
+            <Avatar className="h-8 w-8 ring-2 ring-amber-500/40 transition-transform hover:scale-105">
+              <AvatarFallback className="bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-800 text-black">
                 {initials || <User className="h-4 w-4" />}
               </AvatarFallback>
             </Avatar>

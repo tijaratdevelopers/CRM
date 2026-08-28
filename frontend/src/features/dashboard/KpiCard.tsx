@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 export type KpiTone = 'blue' | 'purple' | 'red' | 'green' | 'gray';
 
 const TONE: Record<KpiTone, string> = {
-  blue: 'bg-sky-500/15 text-sky-400 ring-1 ring-inset ring-sky-500/30',
-  purple: 'bg-violet-500/15 text-violet-400 ring-1 ring-inset ring-violet-500/30',
+  blue: 'bg-amber-500/15 text-amber-400 ring-1 ring-inset ring-amber-500/30',
+  purple: 'bg-yellow-600/15 text-yellow-500 ring-1 ring-inset ring-yellow-600/30',
   red: 'bg-rose-500/15 text-rose-400 ring-1 ring-inset ring-rose-500/30',
   green: 'bg-emerald-500/15 text-emerald-400 ring-1 ring-inset ring-emerald-500/30',
   gray: 'bg-muted text-muted-foreground ring-1 ring-inset ring-border',

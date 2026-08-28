@@ -68,12 +68,12 @@ export function TasksOverviewCard({ mock }: { mock?: Task[] }) {
               <dd className="font-semibold text-foreground">{total}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-emerald-400">Completed</dt>
-              <dd className="font-semibold text-emerald-400">{completed}</dd>
+              <dt className="text-primary">Completed</dt>
+              <dd className="font-semibold text-primary">{completed}</dd>
             </div>
             <div className="flex items-center justify-between">
-              <dt className="text-sky-400">Pending</dt>
-              <dd className="font-semibold text-sky-400">{pending}</dd>
+              <dt className="text-amber-400/80">Pending</dt>
+              <dd className="font-semibold text-amber-400/80">{pending}</dd>
             </div>
             <div className="flex items-center justify-between">
               <dt className="text-rose-400">Overdue</dt>

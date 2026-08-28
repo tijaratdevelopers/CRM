@@ -52,7 +52,7 @@ export function RecentActivitiesCard({ mock }: { mock?: ActivityLog[] }) {
               `${humanize(log.action)} · ${humanize(log.entity_type)}`;
             return (
               <li key={log.id} className="flex items-start gap-3">
-                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/15 text-sky-400 ring-1 ring-inset ring-sky-500/25">
+                <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/15 text-amber-400 ring-1 ring-inset ring-amber-500/25">
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0 flex-1">
