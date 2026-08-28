@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { KeyRound, LogOut, Menu, User } from 'lucide-react';
+import { KeyRound, LogOut, Menu, Moon, Sun, User } from 'lucide-react';
+import { useTheme } from '@/lib/theme';
 import { toast } from 'sonner';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
@@ -134,6 +135,21 @@ const ROLE_LABEL: Record<string, string> = {
   staff: 'Staff',
 };
 
+function ThemeIconToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+    >
+      {isDark ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+    </button>
+  );
+}
+
 export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -152,25 +168,26 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between gap-4 border-b bg-card/80 px-4 backdrop-blur-md">
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <button
-          type="button"
-          onClick={onMenuClick}
-          aria-label="Open menu"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border bg-card/70 px-4 backdrop-blur-xl">
+      <button
+        type="button"
+        onClick={onMenuClick}
+        aria-label="Open menu"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent md:hidden"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
+      <div className="flex min-w-0 flex-1 items-center">
         <GlobalSearch />
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         <ProjectSwitcher />
         <NotificationBell />
+        <ThemeIconToggle />
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-md px-2 py-1 text-sm hover:bg-accent">
-            <Avatar className="h-7 w-7 ring-2 ring-amber-500/30 transition-transform hover:scale-105">
-              <AvatarFallback className="bg-gradient-to-br from-amber-500 via-amber-600 to-yellow-800 text-black">
+            <Avatar className="h-8 w-8 ring-2 ring-sky-500/40 transition-transform hover:scale-105">
+              <AvatarFallback className="bg-gradient-to-br from-sky-500 via-blue-600 to-indigo-700 text-white">
                 {initials || <User className="h-4 w-4" />}
               </AvatarFallback>
             </Avatar>

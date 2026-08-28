@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
+import { Bot, LogOut, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { navItems, type NavItem } from './navConfig';
 import { cn } from '@/lib/utils';
@@ -66,13 +66,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
 
   function renderSignOut() {
     return (
-      <div className={cn('border-t border-amber-900/20', collapsed ? 'p-2' : 'p-3')}>
+      <div className={cn('border-t border-sky-900/25', collapsed ? 'p-2' : 'p-3')}>
         <button
           type="button"
           onClick={handleSignOut}
           title={collapsed ? 'Sign out' : undefined}
           className={cn(
-            'flex w-full items-center rounded-lg text-sm font-medium text-amber-50/60 transition-colors hover:bg-amber-500/10 hover:text-white',
+            'flex w-full items-center rounded-lg text-sm font-medium text-sky-50/60 transition-colors hover:bg-sky-500/10 hover:text-white',
             collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2',
           )}
         >
@@ -98,21 +98,21 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 'group relative flex items-center rounded-lg text-sm font-medium transition-all duration-200 animate-slide-in-left',
                 collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-2',
                 isActive
-                  ? 'bg-gradient-to-r from-amber-500/90 to-yellow-600/90 text-black shadow-md shadow-black/60'
-                  : 'text-amber-50/60 hover:bg-amber-500/10 hover:text-white' +
+                  ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-lg shadow-sky-500/30'
+                  : 'text-sky-50/60 hover:bg-sky-500/10 hover:text-white' +
                     (collapsed ? '' : ' hover:translate-x-0.5'),
               )}
               style={{ animationDelay: `${i * 40}ms` }}
             >
               {isActive && !collapsed && (
-                <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-amber-400 shadow-[0_0_8px_rgba(245,196,69,0.8)]" />
+                <span className="absolute -left-3 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-sky-300 shadow-[0_0_8px_rgba(56,189,248,0.9)]" />
               )}
               <item.icon
                 className={cn(
                   'h-4 w-4 shrink-0 transition-transform duration-200',
                   isActive
-                    ? 'text-black'
-                    : 'text-amber-200/50 group-hover:scale-110 group-hover:text-amber-300',
+                    ? 'text-white'
+                    : 'text-sky-200/50 group-hover:scale-110 group-hover:text-sky-300',
                 )}
               />
               {!collapsed && <span className="truncate">{item.label}</span>}
@@ -126,12 +126,21 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
   function renderFooter() {
     if (collapsed) return null;
     return (
-      <div className="border-t border-amber-900/20 p-3">
-        <div className="relative overflow-hidden rounded-xl border border-amber-700/20 bg-black/30 px-3 py-2.5 text-xs">
-          <p className="font-bold text-white">
-            Tijarat <span className="text-gold">Developers</span> CRM
-          </p>
-          <p className="mt-0.5 text-amber-100/50">Grow every lead into business.</p>
+      <div className="border-t border-sky-900/25 p-3">
+        <div className="relative overflow-hidden rounded-xl border border-sky-700/25 bg-sky-950/40 px-3 py-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 shadow-lg shadow-sky-500/30">
+              <Bot className="h-4 w-4 text-white" />
+            </span>
+            <div className="leading-tight">
+              <p className="font-bold text-white">AI Assistant</p>
+              <p className="flex items-center gap-1 text-[10px] text-emerald-400">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+                Online
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 text-sky-100/60">Need help today? I&apos;m here to assist you.</p>
           <span className="sheen-overlay" />
         </div>
       </div>
@@ -149,7 +158,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
       >
         <div
           className={cn(
-            'flex h-16 items-center gap-2.5 border-b border-amber-900/20',
+            'flex h-16 items-center gap-2.5 border-b border-sky-900/25',
             collapsed ? 'justify-center px-2' : 'px-4',
           )}
         >
@@ -158,9 +167,9 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
               <BrandMark />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className="truncate text-sm font-extrabold tracking-tight text-white">
-                  Tijarat <span className="text-gold">Developers</span>
+                  Tijarat <span className="text-primary">Developers</span>
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-200/60">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-sky-200/60">
                   CRM Suite
                 </span>
               </div>
@@ -171,7 +180,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             onClick={toggleCollapsed}
             title={collapsed ? 'Open sidebar' : 'Close sidebar'}
             aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-amber-200/50 transition-colors hover:bg-amber-500/10 hover:text-amber-300"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sky-200/50 transition-colors hover:bg-sky-500/10 hover:text-sky-300"
           >
             {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
           </button>
@@ -190,13 +199,13 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
             aria-hidden="true"
           />
           <aside className="relative z-50 flex h-full w-64 flex-col overflow-y-auto bg-sidebar-brand text-neutral-100 shadow-xl animate-slide-in-left">
-            <div className="flex h-16 items-center gap-2.5 border-b border-amber-900/20 px-4">
+            <div className="flex h-16 items-center gap-2.5 border-b border-sky-900/25 px-4">
               <BrandMark />
               <div className="flex min-w-0 flex-1 flex-col leading-tight">
                 <span className="truncate text-sm font-extrabold tracking-tight text-white">
-                  Tijarat <span className="text-gold">Developers</span>
+                  Tijarat <span className="text-primary">Developers</span>
                 </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-amber-200/60">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-sky-200/60">
                   CRM Suite
                 </span>
               </div>
@@ -204,7 +213,7 @@ export function Sidebar({ mobileOpen, onMobileClose }: SidebarProps) {
                 type="button"
                 onClick={onMobileClose}
                 aria-label="Close menu"
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-amber-200/50 transition-colors hover:bg-amber-500/10 hover:text-amber-300"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sky-200/50 transition-colors hover:bg-sky-500/10 hover:text-sky-300"
               >
                 <X className="h-4 w-4" />
               </button>

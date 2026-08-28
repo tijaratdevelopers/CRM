@@ -38,6 +38,13 @@ export default {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
+        neon: {
+          blue: 'hsl(var(--neon-blue))',
+          purple: 'hsl(var(--neon-purple))',
+          cyan: 'hsl(var(--neon-cyan))',
+          green: 'hsl(var(--neon-green))',
+        },
+        gold: 'hsl(var(--gold))',
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -101,6 +108,14 @@ export default {
           '0%, 100%': { transform: 'translateY(0px)' },
           '50%': { transform: 'translateY(-8px)' },
         },
+        'pulse-glow-blue': {
+          '0%, 100%': { boxShadow: '0 0 0 0 hsl(var(--neon-blue) / 0)' },
+          '50%': { boxShadow: '0 0 18px 4px hsl(var(--neon-blue) / 0.5)' },
+        },
+        'spin-slow': {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
       },
       animation: {
         blob: 'blob 12s infinite ease-in-out',
@@ -116,6 +131,8 @@ export default {
         'pulse-glow-orange': 'pulse-glow-orange 3.5s ease-in-out infinite',
         'pulse-glow-red': 'pulse-glow-red 3.5s ease-in-out infinite',
         'building-float': 'building-float 5s ease-in-out infinite',
+        'pulse-glow-blue': 'pulse-glow-blue 3.5s ease-in-out infinite',
+        'spin-slow': 'spin-slow 18s linear infinite',
       },
     },
   },

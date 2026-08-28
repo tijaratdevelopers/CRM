@@ -4,48 +4,56 @@
 
 @layer base {
   :root {
-    /* Light theme — same Tijarat Developers black & gold identity, warm-neutral ground. */
-    --background: 40 30% 97%;
-    --foreground: 20 25% 12%;
+    /* Light theme — cool, clean, blue-forward to match the dark neon identity. */
+    --background: 210 40% 97%;
+    --foreground: 222 45% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 20 25% 12%;
-    --primary: 38 65% 42%;
-    --primary-foreground: 40 30% 97%;
-    --secondary: 40 22% 93%;
-    --secondary-foreground: 20 20% 20%;
-    --muted: 40 22% 93%;
-    --muted-foreground: 25 12% 40%;
-    --accent: 38 45% 90%;
-    --accent-foreground: 25 30% 25%;
-    --destructive: 0 65% 42%;
-    --destructive-foreground: 40 30% 97%;
-    --border: 30 15% 85%;
-    --input: 30 15% 85%;
-    --ring: 38 65% 42%;
-    --radius: 0.85rem;
-    --gold: 38 65% 42%;
+    --card-foreground: 222 45% 12%;
+    --primary: 208 90% 46%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 30% 93%;
+    --secondary-foreground: 222 30% 20%;
+    --muted: 210 30% 93%;
+    --muted-foreground: 215 16% 42%;
+    --accent: 255 60% 55%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 25% 87%;
+    --input: 214 25% 87%;
+    --ring: 208 90% 46%;
+    --radius: 0.9rem;
+    --gold: 32 92% 48%;
+    --neon-blue: 205 100% 56%;
+    --neon-purple: 262 83% 62%;
+    --neon-cyan: 190 95% 50%;
+    --neon-green: 152 68% 45%;
   }
 
   .dark {
-    /* Dark theme — the brand default: black & gold, matching the logo. */
-    --background: 20 14% 7%;
-    --foreground: 40 33% 92%;
-    --card: 20 14% 10%;
-    --card-foreground: 40 33% 92%;
-    --primary: 38 55% 52%;
-    --primary-foreground: 20 14% 8%;
-    --secondary: 20 12% 14%;
-    --secondary-foreground: 40 30% 90%;
-    --muted: 20 12% 14%;
-    --muted-foreground: 30 10% 62%;
-    --accent: 38 35% 16%;
-    --accent-foreground: 40 55% 82%;
-    --destructive: 0 65% 48%;
-    --destructive-foreground: 40 30% 95%;
-    --border: 20 12% 18%;
-    --input: 20 12% 18%;
-    --ring: 38 55% 52%;
-    --gold: 38 70% 58%;
+    /* Dark theme — the product default: deep blue-black with electric-blue / violet neon. */
+    --background: 222 47% 5%;
+    --foreground: 210 40% 96%;
+    --card: 222 38% 8%;
+    --card-foreground: 210 40% 96%;
+    --primary: 205 100% 56%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 222 24% 14%;
+    --secondary-foreground: 210 35% 90%;
+    --muted: 222 22% 13%;
+    --muted-foreground: 215 18% 62%;
+    --accent: 262 60% 22%;
+    --accent-foreground: 255 90% 88%;
+    --destructive: 0 72% 52%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 222 25% 16%;
+    --input: 222 25% 16%;
+    --ring: 205 100% 56%;
+    --gold: 34 95% 58%;
+    --neon-blue: 205 100% 60%;
+    --neon-purple: 262 83% 68%;
+    --neon-cyan: 190 95% 55%;
+    --neon-green: 152 70% 48%;
   }
 
   * {
@@ -65,27 +73,42 @@
     background-size: 32px 32px;
   }
 
+  /* Main app canvas — dark tech ground with a fine grid and soft neon aurora. */
+  .bg-app-canvas {
+    background-color: hsl(var(--background));
+    background-image:
+      radial-gradient(ellipse 60% 50% at 12% 0%, hsl(var(--neon-blue) / 0.10), transparent 60%),
+      radial-gradient(ellipse 50% 45% at 90% 8%, hsl(var(--neon-purple) / 0.10), transparent 55%),
+      linear-gradient(hsl(var(--foreground) / 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--foreground) / 0.035) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  }
+
   .glass-panel {
     background: hsl(var(--card) / 0.7);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
 
-  .animation-delay-2000 {
-    animation-delay: 2s;
+  /* Panel with a faint neon edge — the dashboard's default card treatment. */
+  .neon-panel {
+    background: linear-gradient(180deg, hsl(var(--card) / 0.9), hsl(var(--card) / 0.72));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 0 1px 0 hsl(var(--foreground) / 0.04) inset, 0 18px 40px -24px hsl(var(--neon-blue) / 0.35);
+  }
+  .neon-panel:hover {
+    border-color: hsl(var(--primary) / 0.35);
   }
 
-  .animation-delay-4000 {
-    animation-delay: 4s;
-  }
+  .animation-delay-2000 { animation-delay: 2s; }
+  .animation-delay-4000 { animation-delay: 4s; }
 
   /* Brand helpers */
-  .text-gold {
-    color: hsl(var(--gold));
-  }
+  .text-gold { color: hsl(var(--gold)); }
+  .text-neon { color: hsl(var(--neon-blue)); }
 
   .text-gradient-brand {
-    background: linear-gradient(100deg, #e8c377 0%, #cb9b47 45%, #f0d28a 100%);
+    background: linear-gradient(100deg, hsl(var(--neon-cyan)) 0%, hsl(var(--neon-blue)) 45%, hsl(var(--neon-purple)) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -93,8 +116,8 @@
 
   .bg-sidebar-brand {
     background:
-      radial-gradient(ellipse 80% 40% at 50% -10%, rgba(203, 155, 71, 0.14), transparent),
-      linear-gradient(180deg, #120e0c 0%, #1b1512 55%, #14100d 100%);
+      radial-gradient(ellipse 80% 40% at 50% -10%, hsl(var(--neon-blue) / 0.16), transparent),
+      linear-gradient(180deg, #0a0f1c 0%, #0c1220 55%, #090d18 100%);
   }
 
   .sheen-overlay {
@@ -128,14 +151,12 @@
     opacity: 0;
     pointer-events: none;
     transition: opacity .35s ease;
-    background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(201, 123, 6, 0.2), transparent 62%);
+    background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), hsl(var(--neon-blue) / 0.22), transparent 62%);
   }
   .stat-tilt.is-red::before {
     background: radial-gradient(220px circle at var(--mx, 50%) var(--my, 0%), rgba(197, 32, 32, 0.22), transparent 62%);
   }
-  .stat-tilt:hover::before {
-    opacity: 1;
-  }
+  .stat-tilt:hover::before { opacity: 1; }
   .stat-tilt-body {
     position: relative;
     transform: translateZ(18px);
@@ -144,11 +165,18 @@
     transform: translateZ(28px);
     transition: transform .3s cubic-bezier(.22, 1, .36, 1), box-shadow .3s ease;
   }
-  .group:hover .stat-icon-3d {
-    transform: translateZ(38px) scale(1.07);
+  .group:hover .stat-icon-3d { transform: translateZ(38px) scale(1.07); }
+  .group:hover .stat-icon-3d.tone-blue {
+    box-shadow: 0 0 0 6px hsl(var(--neon-blue) / 0.12), 0 0 20px 4px hsl(var(--neon-blue) / 0.45);
+  }
+  .group:hover .stat-icon-3d.tone-purple {
+    box-shadow: 0 0 0 6px hsl(var(--neon-purple) / 0.12), 0 0 20px 4px hsl(var(--neon-purple) / 0.45);
+  }
+  .group:hover .stat-icon-3d.tone-green {
+    box-shadow: 0 0 0 6px hsl(var(--neon-green) / 0.12), 0 0 20px 4px hsl(var(--neon-green) / 0.45);
   }
   .group:hover .stat-icon-3d.tone-orange {
-    box-shadow: 0 0 0 6px rgba(201, 123, 6, 0.12), 0 0 20px 4px rgba(201, 123, 6, 0.4);
+    box-shadow: 0 0 0 6px hsl(var(--neon-blue) / 0.12), 0 0 20px 4px hsl(var(--neon-blue) / 0.45);
   }
   .group:hover .stat-icon-3d.tone-red {
     box-shadow: 0 0 0 6px rgba(197, 32, 32, 0.14), 0 0 20px 4px rgba(197, 32, 32, 0.4);
@@ -159,11 +187,8 @@
     .stat-icon-3d, .group:hover .stat-icon-3d { transform: none !important; }
   }
 
-  /* App-wide 3D cube loader (FullScreenLoader.tsx) — a real rotating cube,
-     not a flat spinner: six faces held in 3D space by a shared perspective. */
-  .loader-3d-scene {
-    perspective: 340px;
-  }
+  /* App-wide 3D cube loader (FullScreenLoader.tsx). */
+  .loader-3d-scene { perspective: 340px; }
   .loader-3d-cube {
     position: relative;
     width: 40px;
@@ -175,7 +200,7 @@
     position: absolute;
     inset: 0;
     border: 1px solid hsl(var(--primary) / 0.5);
-    background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--gold) / 0.55));
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.85), hsl(var(--neon-purple) / 0.55));
     box-shadow: 0 0 16px hsl(var(--primary) / 0.25) inset;
   }
   .loader-3d-face:nth-child(1) { transform: rotateY(0deg) translateZ(20px); }

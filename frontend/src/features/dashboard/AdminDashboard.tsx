@@ -1,26 +1,24 @@
-import type { ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutGrid, Contact, Sparkles, Users, UsersRound, UserCog, CalendarClock, BellRing, PhoneCall, TrendingUp, TrendingDown, Megaphone, MessageCircle, Loader } from 'lucide-react';
+import { format } from 'date-fns';
+import { Contact, Loader, CalendarClock, BellRing, Trophy, CalendarDays } from 'lucide-react';
 import { apiClient } from '@/lib/apiClient';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useProject } from '@/features/projects/ProjectContext';
-import { StatCard, type StatTone } from '@/features/dashboard/StatCard';
-import { DashboardCharts } from '@/features/dashboard/DashboardCharts';
-import { DashboardHero } from '@/features/dashboard/DashboardHero';
+import { KpiCard } from '@/features/dashboard/KpiCard';
+import { LeadsOverviewChart } from '@/features/dashboard/LeadsOverviewChart';
+import { LeadsBySourceCard } from '@/features/dashboard/LeadsBySourceCard';
+import { TasksOverviewCard } from '@/features/dashboard/TasksOverviewCard';
+import { RecentActivitiesCard } from '@/features/dashboard/RecentActivitiesCard';
+import { InProgressLeadsCard } from '@/features/dashboard/InProgressLeadsCard';
+import { DashboardRobot } from '@/features/dashboard/DashboardRobot';
+import { useDashboardCharts, monthOverMonthTrend } from '@/features/dashboard/dashboardApi';
 
 interface AdminSummary {
   total_leads: number;
   todays_leads: number;
-  active_staff: number;
-  team_leads: number;
   meetings_today: number;
   pending_follow_ups: number;
-  total_calls: number;
   won_leads: number;
-  lost_leads: number;
-  meta_leads: number;
-  whatsapp_leads: number;
-  active_teams: number;
   in_progress_leads: number;
 }
 
@@ -34,54 +32,59 @@ async function fetchAdminSummary(projectId: string | null): Promise<AdminSummary
 export function AdminDashboard() {
   const { profile } = useAuth();
   const { selectedProjectId } = useProject();
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['dashboard-summary', selectedProjectId],
     queryFn: () => fetchAdminSummary(selectedProjectId),
   });
+  const charts = useDashboardCharts();
+  const leadsTrend = monthOverMonthTrend(charts.data?.monthlyLeads);
 
-  const stats: { label: string; value: number | string; icon: ReactNode; tone: StatTone; to: string }[] = [
-    { label: 'Total Leads', value: data?.total_leads ?? '—', icon: <Contact className="h-5 w-5" />, tone: 'orange', to: '/leads' },
-    { label: "Today's Leads", value: data?.todays_leads ?? '—', icon: <Sparkles className="h-5 w-5" />, tone: 'gray', to: '/leads' },
-    { label: 'Meta Leads', value: data?.meta_leads ?? '—', icon: <Megaphone className="h-5 w-5" />, tone: 'gray', to: '/leads' },
-    { label: 'WhatsApp Leads', value: data?.whatsapp_leads ?? '—', icon: <MessageCircle className="h-5 w-5" />, tone: 'orange', to: '/whatsapp' },
-    { label: 'Active Teams', value: data?.active_teams ?? '—', icon: <UsersRound className="h-5 w-5" />, tone: 'orange', to: '/teams' },
-    { label: 'Active Staff', value: data?.active_staff ?? '—', icon: <Users className="h-5 w-5" />, tone: 'orange', to: '/staff' },
-    { label: 'Team Leads', value: data?.team_leads ?? '—', icon: <UserCog className="h-5 w-5" />, tone: 'orange', to: '/team-leads' },
-    { label: 'Meetings Today', value: data?.meetings_today ?? '—', icon: <CalendarClock className="h-5 w-5" />, tone: 'gray', to: '/meetings' },
-    { label: 'Pending Follow-ups', value: data?.pending_follow_ups ?? '—', icon: <BellRing className="h-5 w-5" />, tone: 'orange', to: '/follow-ups' },
-    { label: 'Total Calls', value: data?.total_calls ?? '—', icon: <PhoneCall className="h-5 w-5" />, tone: 'gray', to: '/call-logs' },
-    { label: 'In Progress Leads', value: data?.in_progress_leads ?? '—', icon: <Loader className="h-5 w-5" />, tone: 'orange', to: '/leads/in-progress' },
-    { label: 'Won Leads', value: data?.won_leads ?? '—', icon: <TrendingUp className="h-5 w-5" />, tone: 'orange', to: '/leads' },
-    { label: 'Lost Leads', value: data?.lost_leads ?? '—', icon: <TrendingDown className="h-5 w-5" />, tone: 'red', to: '/leads' },
-  ];
-
-  const maxValue = Math.max(1, ...stats.map((s) => (typeof s.value === 'number' ? s.value : 0)));
+  const firstName = profile?.full_name ? profile.full_name.split(' ')[0] : 'there';
 
   return (
-    <div className="flex flex-col gap-6">
-      <DashboardHero
-        eyebrow="Tijarat Developers · Command Center"
-        title={`Welcome back${profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} — your business at a glance`}
-        subtitle="Every lead from Meta Ads, WhatsApp and your campaigns — captured, auto-distributed to your teams, and tracked to the close. Nothing slips through."
-        gradient="bg-gradient-to-br from-neutral-900 via-stone-800 to-amber-700"
-        icon={<LayoutGrid className="h-8 w-8" />}
-      />
-
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {Array.from({ length: 13 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-lg border bg-muted/40" />
-          ))}
+    <div className="flex flex-col gap-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            Welcome back, {firstName} <span className="inline-block animate-float">👋</span>
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Here&apos;s what&apos;s happening with your business today.
+          </p>
         </div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-          {stats.map((stat, i) => (
-            <StatCard key={stat.label} label={stat.label} value={stat.value} icon={stat.icon} tone={stat.tone} index={i} to={stat.to} maxValue={maxValue} />
-          ))}
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+          <CalendarDays className="h-4 w-4 text-primary" />
+          {format(new Date(), 'MMMM d, yyyy')}
         </div>
-      )}
+      </div>
 
-      <DashboardCharts />
+      {/* KPI row */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <KpiCard label="Total Leads" value={data?.total_leads ?? '—'} icon={<Contact className="h-5 w-5" />} tone="blue" trend={leadsTrend} to="/leads" index={0} />
+        <KpiCard label="In Progress Leads" value={data?.in_progress_leads ?? '—'} icon={<Loader className="h-5 w-5" />} tone="purple" to="/leads/in-progress" index={1} />
+        <KpiCard label="Meetings Today" value={data?.meetings_today ?? '—'} icon={<CalendarClock className="h-5 w-5" />} tone="blue" to="/meetings" index={2} />
+        <KpiCard label="Follow-ups Due" value={data?.pending_follow_ups ?? '—'} icon={<BellRing className="h-5 w-5" />} tone="red" to="/follow-ups" index={3} />
+        <KpiCard label="Won Leads" value={data?.won_leads ?? '—'} icon={<Trophy className="h-5 w-5" />} tone="green" to="/leads" index={4} />
+      </div>
+
+      {/* Middle: charts + robot */}
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.05fr_1fr]">
+        <div className="flex flex-col gap-5">
+          <LeadsOverviewChart />
+          <InProgressLeadsCard />
+        </div>
+        <div className="order-first flex items-center justify-center xl:order-none">
+          <DashboardRobot />
+        </div>
+        <div className="flex flex-col gap-5">
+          <LeadsBySourceCard />
+          <TasksOverviewCard />
+        </div>
+      </div>
+
+      {/* Bottom */}
+      <RecentActivitiesCard />
     </div>
   );
 }
