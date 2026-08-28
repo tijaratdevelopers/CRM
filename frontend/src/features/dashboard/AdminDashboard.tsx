@@ -69,12 +69,12 @@ export function AdminDashboard() {
       </div>
 
       {/* Middle: charts + robot */}
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.05fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.2fr_1fr]">
         <div className="flex flex-col gap-5">
           <LeadsOverviewChart />
           <InProgressLeadsCard />
         </div>
-        <div className="order-first flex items-center justify-center xl:order-none">
+        <div className="order-first flex min-h-[460px] items-stretch justify-center xl:order-none">
           <DashboardRobot />
         </div>
         <div className="flex flex-col gap-5">

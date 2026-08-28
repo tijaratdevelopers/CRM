@@ -132,7 +132,7 @@ export function StaffDashboard() {
         <KpiCard label="In Progress" value={data?.in_progress_leads ?? '—'} icon={<Loader className="h-5 w-5" />} tone="green" to="/leads/in-progress" index={5} />
       </div>
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.05fr_1fr]">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1fr_1.2fr_1fr]">
         <div className="flex flex-col gap-5">
           <Card className="neon-panel animate-fade-in-up rounded-2xl p-5">
             <h3 className="mb-4 text-base font-semibold text-foreground">Today at a glance</h3>
@@ -159,7 +159,7 @@ export function StaffDashboard() {
           </Card>
           <InProgressLeadsCard />
         </div>
-        <div className="order-first flex items-center justify-center xl:order-none">
+        <div className="order-first flex min-h-[460px] items-stretch justify-center xl:order-none">
           <DashboardRobot />
         </div>
         <div className="flex flex-col gap-5">
