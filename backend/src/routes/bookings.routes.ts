@@ -6,4 +6,5 @@ export const bookingsRouter = Router();
 
 bookingsRouter.use(requireAuth);
 
+bookingsRouter.get('/', bookingsController.list);
 bookingsRouter.post('/', bookingsController.create);

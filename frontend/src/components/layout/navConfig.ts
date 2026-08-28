@@ -15,6 +15,8 @@ import {
   Settings,
   Loader,
   FolderKanban,
+  Trophy,
+  CircleX,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -35,6 +37,8 @@ export const navItems: NavItem[] = [
     icon: Loader,
     roles: ['admin', 'team_lead', 'staff'],
   },
+  { label: 'Won Leads', to: '/won-leads', icon: Trophy, roles: ['admin', 'team_lead', 'staff'] },
+  { label: 'Lost Leads', to: '/lost-leads', icon: CircleX, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Meetings', to: '/meetings', icon: CalendarClock, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Follow-ups', to: '/follow-ups', icon: BellRing, roles: ['admin', 'team_lead', 'staff'] },
   { label: 'Call Logs', to: '/call-logs', icon: PhoneCall, roles: ['admin', 'team_lead', 'staff'] },

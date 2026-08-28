@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../config/supabaseAdmin';
 import { unwrap } from '../utils/db';
+import { HttpError } from '../middleware/auth';
 import { logActivity } from '../utils/activityLog';
 import { AuthUser } from '../types';
 import { getLeadById, updateLead } from './leads.service';
@@ -24,6 +25,46 @@ export interface CreateBookingInput {
   amount: number;
   downPaymentDone?: boolean;
   notes?: string;
+}
+
+export interface BookingWithLead extends Booking {
+  lead: {
+    id: string;
+    name: string;
+    phone: string | null;
+    company: string | null;
+    city: string | null;
+    source_id: string | null;
+    assigned_staff_id: string | null;
+    assigned_team_lead_id: string | null;
+    status: string;
+  } | null;
+}
+
+/**
+ * Lists every recorded sale (i.e. every won lead), newest first. Scoped the
+ * same way leads are: admin sees all, team_lead sees their team's, staff
+ * sees only their own — enforced through an inner join on the lead.
+ */
+export async function listBookings(user: AuthUser, projectId?: string): Promise<BookingWithLead[]> {
+  let query = supabaseAdmin
+    .from('bookings')
+    .select(
+      '*, lead:leads!inner(id, name, phone, company, city, source_id, assigned_staff_id, assigned_team_lead_id, status)',
+    );
+
+  if (user.role === 'staff') {
+    query = query.eq('lead.assigned_staff_id', user.id);
+  } else if (user.role === 'team_lead') {
+    query = query.eq('lead.assigned_team_lead_id', user.id);
+  }
+  if (projectId) query = query.eq('project_id', projectId);
+
+  const { data, error } = await query.order('booking_date', { ascending: false });
+  if (error) {
+    throw new HttpError(400, error.message);
+  }
+  return (data ?? []) as BookingWithLead[];
 }
 
 /**

@@ -197,6 +197,31 @@ export interface Task {
   due_date: string | null;
 }
 
+export interface Booking {
+  id: string;
+  lead_id: string;
+  staff_id: string;
+  project_id: string;
+  property_plot: string;
+  amount: number;
+  down_payment_done: boolean;
+  booking_date: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  lead: {
+    id: string;
+    name: string;
+    phone: string | null;
+    company: string | null;
+    city: string | null;
+    source_id: string | null;
+    assigned_staff_id: string | null;
+    assigned_team_lead_id: string | null;
+    status: LeadStatus;
+  } | null;
+}
+
 export interface Notification {
   id: string;
   user_id: string;

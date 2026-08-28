@@ -16,6 +16,8 @@ const ProjectsPage = lazy(() => import('@/features/projects/ProjectsPage').then(
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const LeadsListPage = lazy(() => import('@/features/leads/LeadsListPage').then((m) => ({ default: m.LeadsListPage })));
 const InProgressLeadsPage = lazy(() => import('@/features/leads/InProgressLeadsPage').then((m) => ({ default: m.InProgressLeadsPage })));
+const WonLeadsPage = lazy(() => import('@/features/wonleads/WonLeadsPage').then((m) => ({ default: m.WonLeadsPage })));
+const LostLeadsPage = lazy(() => import('@/features/lostleads/LostLeadsPage').then((m) => ({ default: m.LostLeadsPage })));
 const LeadDetailPage = lazy(() => import('@/features/leads/LeadDetailPage').then((m) => ({ default: m.LeadDetailPage })));
 const MeetingsPage = lazy(() => import('@/features/meetings/MeetingsPage').then((m) => ({ default: m.MeetingsPage })));
 const FollowUpsPage = lazy(() => import('@/features/followups/FollowUpsPage').then((m) => ({ default: m.FollowUpsPage })));
@@ -54,6 +56,8 @@ export default function App() {
               />
               <Route path="leads" element={<LeadsListPage />} />
               <Route path="leads/in-progress" element={<InProgressLeadsPage />} />
+              <Route path="won-leads" element={<WonLeadsPage />} />
+              <Route path="lost-leads" element={<LostLeadsPage />} />
               <Route path="leads/:id" element={<LeadDetailPage />} />
               <Route path="meetings" element={<MeetingsPage />} />
               <Route path="follow-ups" element={<FollowUpsPage />} />

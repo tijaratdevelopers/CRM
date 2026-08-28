@@ -2,6 +2,12 @@ import { Request, Response } from 'express';
 import * as bookingsService from '../services/bookings.service';
 import { HttpError } from '../middleware/auth';
 
+export async function list(req: Request, res: Response) {
+  const projectId = typeof req.query.projectId === 'string' ? req.query.projectId : undefined;
+  const data = await bookingsService.listBookings(req.user!, projectId);
+  res.json(data);
+}
+
 export async function create(req: Request, res: Response) {
   const body = req.body ?? {};
   if (!body.leadId) throw new HttpError(400, 'leadId is required');
