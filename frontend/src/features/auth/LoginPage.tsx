@@ -17,13 +17,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-// AI neural-network scene palette (login background) — deep blue field, white/blue motion
-const AI_BG = 0x050b1f;
-const AI_SCENE_BG = '#050b1f';
-const AI_NODE = 0xdbe7ff;
-const AI_LINE = 0x5b8bff;
-const AI_PULSE = 0xffffff;
-const AI_FLARE = 0xffffff;
+const GOLD = 0xf0a500;
+const BG_COLOR = 0x1a1409;
 
 const HIGHLIGHTS = [
   { icon: Shuffle, label: 'Automatic lead distribution', desc: 'Round-robin engine shares every lead fairly across teams' },
@@ -75,11 +70,9 @@ function GoldSkyline({ tilt }: { tilt: { rx: number; ry: number } }) {
   );
 }
 
-/** The 3D scene behind the sign-in card: an AI "neural network" rendered in real 3D —
- * ~140 gold neuron nodes distributed through a brain-shaped volume, wired to their nearest
- * neighbours with faint synapse lines, with bright signal pulses that travel edge to edge
- * and make nodes flare as they pass. A field of drifting dust sits behind it, the whole
- * lattice rotates slowly, and the camera eases toward the mouse for a subtle parallax feel. */
+/** The 3D scene behind the sign-in card: 3500 drifting gold particles, seven wireframe
+ * shapes (torus / icosahedron / octahedron / torus-knot) each rotating and bobbing at
+ * their own pace, and a camera that eases toward the mouse for a subtle parallax feel. */
 function ThreeLoginBackground() {
   const mountRef = React.useRef<HTMLDivElement>(null);
 
@@ -90,133 +83,62 @@ function ThreeLoginBackground() {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(AI_BG);
+    scene.background = new THREE.Color(BG_COLOR);
 
     const camera = new THREE.PerspectiveCamera(60, mount.clientWidth / mount.clientHeight, 0.1, 1000);
-    camera.position.z = 46;
+    camera.position.z = 34;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(mount.clientWidth, mount.clientHeight);
     mount.appendChild(renderer.domElement);
 
-    // ── ambient dust ────────────────────────────────────────────────
-    const dustCount = 1400;
-    const dustPositions = new Float32Array(dustCount * 3);
-    for (let i = 0; i < dustCount; i++) {
-      dustPositions[i * 3] = (Math.random() - 0.5) * 110;
-      dustPositions[i * 3 + 1] = (Math.random() - 0.5) * 110;
-      dustPositions[i * 3 + 2] = (Math.random() - 0.5) * 110;
+    const particleCount = 3500;
+    const positions = new Float32Array(particleCount * 3);
+    for (let i = 0; i < particleCount; i++) {
+      positions[i * 3] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 1] = (Math.random() - 0.5) * 90;
+      positions[i * 3 + 2] = (Math.random() - 0.5) * 90;
     }
-    const dustGeometry = new THREE.BufferGeometry();
-    dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
-    const dustMaterial = new THREE.PointsMaterial({
-      color: AI_NODE,
-      size: 0.14,
+    const particleGeometry = new THREE.BufferGeometry();
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const particleMaterial = new THREE.PointsMaterial({
+      color: GOLD,
+      size: 0.16,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.75,
       sizeAttenuation: true,
     });
-    const dust = new THREE.Points(dustGeometry, dustMaterial);
-    scene.add(dust);
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
 
-    // ── neural network ──────────────────────────────────────────────
-    const net = new THREE.Group();
-    scene.add(net);
+    const geometries: THREE.BufferGeometry[] = [
+      new THREE.TorusGeometry(4, 1.2, 10, 40),
+      new THREE.IcosahedronGeometry(3.2, 0),
+      new THREE.OctahedronGeometry(3.6, 0),
+      new THREE.TorusKnotGeometry(2.4, 0.75, 100, 16),
+      new THREE.TorusGeometry(3, 0.9, 8, 30),
+      new THREE.IcosahedronGeometry(2.4, 0),
+      new THREE.OctahedronGeometry(2.8, 0),
+    ];
 
-    const NODE_COUNT = 140;
-    const RADII = new THREE.Vector3(24, 16, 17); // brain-ish ellipsoid
-    const nodes: THREE.Vector3[] = [];
-    for (let i = 0; i < NODE_COUNT; i++) {
-      const dir = new THREE.Vector3(
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-        Math.random() - 0.5,
-      ).normalize();
-      dir.multiplyScalar(Math.cbrt(Math.random())); // fill the volume, not just the shell
-      nodes.push(new THREE.Vector3(dir.x * RADII.x, dir.y * RADII.y, dir.z * RADII.z));
-    }
-
-    // node points — a base colour buffer we brighten transiently when a pulse passes
-    const nodePositions = new Float32Array(NODE_COUNT * 3);
-    const nodeColors = new Float32Array(NODE_COUNT * 3);
-    const nodeGlow = new Float32Array(NODE_COUNT); // 0..1 transient flare
-    const baseCol = new THREE.Color(AI_NODE);
-    for (let i = 0; i < NODE_COUNT; i++) {
-      nodePositions[i * 3] = nodes[i].x;
-      nodePositions[i * 3 + 1] = nodes[i].y;
-      nodePositions[i * 3 + 2] = nodes[i].z;
-      nodeColors[i * 3] = baseCol.r;
-      nodeColors[i * 3 + 1] = baseCol.g;
-      nodeColors[i * 3 + 2] = baseCol.b;
-    }
-    const nodeGeometry = new THREE.BufferGeometry();
-    nodeGeometry.setAttribute('position', new THREE.BufferAttribute(nodePositions, 3));
-    nodeGeometry.setAttribute('color', new THREE.BufferAttribute(nodeColors, 3));
-    const nodeMaterial = new THREE.PointsMaterial({
-      size: 0.7,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.95,
-      sizeAttenuation: true,
+    const shapes = geometries.map((geometry, i) => {
+      const material = new THREE.MeshBasicMaterial({ color: GOLD, wireframe: true, transparent: true, opacity: 0.25 });
+      const mesh = new THREE.Mesh(geometry, material);
+      const angle = (i / geometries.length) * Math.PI * 2;
+      const radius = 15 + (i % 3) * 6;
+      mesh.position.set(Math.cos(angle) * radius, Math.sin(angle) * radius * 0.6, (i - geometries.length / 2) * 4);
+      scene.add(mesh);
+      return {
+        mesh,
+        rotSpeedX: 0.002 + Math.random() * 0.006,
+        rotSpeedY: 0.002 + Math.random() * 0.006,
+        bobSpeed: 0.4 + Math.random() * 0.6,
+        bobAmount: 1 + Math.random() * 1.5,
+        baseY: mesh.position.y,
+        phase: Math.random() * Math.PI * 2,
+      };
     });
-    const nodePoints = new THREE.Points(nodeGeometry, nodeMaterial);
-    net.add(nodePoints);
-
-    // edges — connect each node to its few nearest neighbours
-    const edges: { a: number; b: number }[] = [];
-    const seen = new Set<string>();
-    const MAX_LINKS = 3;
-    const MAX_DIST = 13;
-    for (let i = 0; i < NODE_COUNT; i++) {
-      const near = nodes
-        .map((p, j) => ({ j, d: p.distanceTo(nodes[i]) }))
-        .filter((o) => o.j !== i && o.d < MAX_DIST)
-        .sort((x, y) => x.d - y.d)
-        .slice(0, MAX_LINKS);
-      for (const { j } of near) {
-        const key = i < j ? `${i}-${j}` : `${j}-${i}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        edges.push({ a: i, b: j });
-      }
-    }
-    const edgePositions = new Float32Array(edges.length * 6);
-    for (let e = 0; e < edges.length; e++) {
-      const { a, b } = edges[e];
-      edgePositions.set([nodes[a].x, nodes[a].y, nodes[a].z, nodes[b].x, nodes[b].y, nodes[b].z], e * 6);
-    }
-    const edgeGeometry = new THREE.BufferGeometry();
-    edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
-    const edgeMaterial = new THREE.LineBasicMaterial({
-      color: AI_LINE,
-      transparent: true,
-      opacity: 0.16,
-    });
-    const edgeLines = new THREE.LineSegments(edgeGeometry, edgeMaterial);
-    net.add(edgeLines);
-
-    // signal pulses that travel along edges
-    const PULSE_COUNT = Math.min(60, edges.length);
-    const pulses = Array.from({ length: PULSE_COUNT }, () => ({
-      edge: Math.floor(Math.random() * edges.length),
-      t: Math.random(),
-      speed: 0.15 + Math.random() * 0.5,
-    }));
-    const pulsePositions = new Float32Array(PULSE_COUNT * 3);
-    const pulseGeometry = new THREE.BufferGeometry();
-    pulseGeometry.setAttribute('position', new THREE.BufferAttribute(pulsePositions, 3));
-    const pulseMaterial = new THREE.PointsMaterial({
-      color: AI_PULSE,
-      size: 1.15,
-      transparent: true,
-      opacity: 0.95,
-      sizeAttenuation: true,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-    });
-    const pulsePoints = new THREE.Points(pulseGeometry, pulseMaterial);
-    net.add(pulsePoints);
 
     let targetX = 0;
     let targetY = 0;
@@ -236,52 +158,25 @@ function ThreeLoginBackground() {
     window.addEventListener('resize', handleResize);
 
     const clock = new THREE.Clock();
-    const flareCol = new THREE.Color(AI_FLARE);
-    const tmpCol = new THREE.Color();
-    let elapsed = 0;
     let frameId: number;
 
     function animate() {
       frameId = requestAnimationFrame(animate);
-      const dt = Math.min(clock.getDelta(), 0.05);
-      elapsed += dt;
+      const elapsed = clock.getElapsedTime();
 
       if (!prefersReducedMotion) {
-        dust.rotation.y += 0.0004;
-        net.rotation.y += 0.0011;
-        net.rotation.x = Math.sin(elapsed * 0.12) * 0.12;
+        particles.rotation.y += 0.0006;
+        particles.rotation.x += 0.0002;
 
-        for (let i = 0; i < NODE_COUNT; i++) nodeGlow[i] *= 0.92;
-
-        for (let p = 0; p < PULSE_COUNT; p++) {
-          const pu = pulses[p];
-          pu.t += pu.speed * dt;
-          if (pu.t >= 1) {
-            nodeGlow[edges[pu.edge].b] = 1; // node flares as the signal arrives
-            pu.edge = Math.floor(Math.random() * edges.length);
-            pu.t = 0;
-            pu.speed = 0.15 + Math.random() * 0.5;
-          }
-          const { a, b } = edges[pu.edge];
-          pulsePositions[p * 3] = nodes[a].x + (nodes[b].x - nodes[a].x) * pu.t;
-          pulsePositions[p * 3 + 1] = nodes[a].y + (nodes[b].y - nodes[a].y) * pu.t;
-          pulsePositions[p * 3 + 2] = nodes[a].z + (nodes[b].z - nodes[a].z) * pu.t;
+        for (const s of shapes) {
+          s.mesh.rotation.x += s.rotSpeedX;
+          s.mesh.rotation.y += s.rotSpeedY;
+          s.mesh.position.y = s.baseY + Math.sin(elapsed * s.bobSpeed + s.phase) * s.bobAmount;
         }
-        pulseGeometry.attributes.position.needsUpdate = true;
-
-        for (let i = 0; i < NODE_COUNT; i++) {
-          const pulse = 0.5 + 0.5 * Math.sin(elapsed * 1.6 + i);
-          tmpCol.copy(baseCol).lerp(flareCol, Math.min(1, nodeGlow[i] + pulse * 0.15));
-          nodeColors[i * 3] = tmpCol.r;
-          nodeColors[i * 3 + 1] = tmpCol.g;
-          nodeColors[i * 3 + 2] = tmpCol.b;
-        }
-        nodeGeometry.attributes.color.needsUpdate = true;
-        edgeMaterial.opacity = 0.1 + 0.05 * Math.sin(elapsed * 0.8);
       }
 
-      camera.position.x += (targetX * 7 - camera.position.x) * 0.03;
-      camera.position.y += (-targetY * 5 - camera.position.y) * 0.03;
+      camera.position.x += (targetX * 6 - camera.position.x) * 0.03;
+      camera.position.y += (-targetY * 4 - camera.position.y) * 0.03;
       camera.lookAt(scene.position);
 
       renderer.render(scene, camera);
@@ -292,14 +187,12 @@ function ThreeLoginBackground() {
       cancelAnimationFrame(frameId);
       window.removeEventListener('resize', handleResize);
       mount.removeEventListener('mousemove', handleMouseMove);
-      dustGeometry.dispose();
-      dustMaterial.dispose();
-      nodeGeometry.dispose();
-      nodeMaterial.dispose();
-      edgeGeometry.dispose();
-      edgeMaterial.dispose();
-      pulseGeometry.dispose();
-      pulseMaterial.dispose();
+      particleGeometry.dispose();
+      particleMaterial.dispose();
+      for (const s of shapes) {
+        s.mesh.geometry.dispose();
+        (s.mesh.material as THREE.Material).dispose();
+      }
       renderer.dispose();
       if (renderer.domElement.parentNode === mount) {
         mount.removeChild(renderer.domElement);
@@ -500,7 +393,7 @@ export function LoginPage() {
       {/* Right form panel — 3D animated background per spec */}
       <div
         className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2"
-        style={{ background: AI_SCENE_BG }}
+        style={{ background: `#${BG_COLOR.toString(16)}` }}
       >
         <ThreeLoginBackground />
 
