@@ -17,8 +17,13 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-const GOLD = 0xf0a500;
-const BG_COLOR = 0x1a1409;
+// AI neural-network scene palette (login background) — deep blue field, white/blue motion
+const AI_BG = 0x050b1f;
+const AI_SCENE_BG = '#050b1f';
+const AI_NODE = 0xdbe7ff;
+const AI_LINE = 0x5b8bff;
+const AI_PULSE = 0xffffff;
+const AI_FLARE = 0xffffff;
 
 const HIGHLIGHTS = [
   { icon: Shuffle, label: 'Automatic lead distribution', desc: 'Round-robin engine shares every lead fairly across teams' },
@@ -85,7 +90,7 @@ function ThreeLoginBackground() {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(BG_COLOR);
+    scene.background = new THREE.Color(AI_BG);
 
     const camera = new THREE.PerspectiveCamera(60, mount.clientWidth / mount.clientHeight, 0.1, 1000);
     camera.position.z = 46;
@@ -106,7 +111,7 @@ function ThreeLoginBackground() {
     const dustGeometry = new THREE.BufferGeometry();
     dustGeometry.setAttribute('position', new THREE.BufferAttribute(dustPositions, 3));
     const dustMaterial = new THREE.PointsMaterial({
-      color: GOLD,
+      color: AI_NODE,
       size: 0.14,
       transparent: true,
       opacity: 0.5,
@@ -136,7 +141,7 @@ function ThreeLoginBackground() {
     const nodePositions = new Float32Array(NODE_COUNT * 3);
     const nodeColors = new Float32Array(NODE_COUNT * 3);
     const nodeGlow = new Float32Array(NODE_COUNT); // 0..1 transient flare
-    const baseCol = new THREE.Color(GOLD);
+    const baseCol = new THREE.Color(AI_NODE);
     for (let i = 0; i < NODE_COUNT; i++) {
       nodePositions[i * 3] = nodes[i].x;
       nodePositions[i * 3 + 1] = nodes[i].y;
@@ -184,9 +189,9 @@ function ThreeLoginBackground() {
     const edgeGeometry = new THREE.BufferGeometry();
     edgeGeometry.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
     const edgeMaterial = new THREE.LineBasicMaterial({
-      color: GOLD,
+      color: AI_LINE,
       transparent: true,
-      opacity: 0.12,
+      opacity: 0.16,
     });
     const edgeLines = new THREE.LineSegments(edgeGeometry, edgeMaterial);
     net.add(edgeLines);
@@ -202,7 +207,7 @@ function ThreeLoginBackground() {
     const pulseGeometry = new THREE.BufferGeometry();
     pulseGeometry.setAttribute('position', new THREE.BufferAttribute(pulsePositions, 3));
     const pulseMaterial = new THREE.PointsMaterial({
-      color: 0xffe6ab,
+      color: AI_PULSE,
       size: 1.15,
       transparent: true,
       opacity: 0.95,
@@ -231,7 +236,7 @@ function ThreeLoginBackground() {
     window.addEventListener('resize', handleResize);
 
     const clock = new THREE.Clock();
-    const flareCol = new THREE.Color(0xffe6ab);
+    const flareCol = new THREE.Color(AI_FLARE);
     const tmpCol = new THREE.Color();
     let elapsed = 0;
     let frameId: number;
@@ -495,7 +500,7 @@ export function LoginPage() {
       {/* Right form panel — 3D animated background per spec */}
       <div
         className="relative flex w-full flex-1 items-center justify-center overflow-hidden px-6 py-12 lg:w-1/2"
-        style={{ background: `#${BG_COLOR.toString(16)}` }}
+        style={{ background: AI_SCENE_BG }}
       >
         <ThreeLoginBackground />
 
